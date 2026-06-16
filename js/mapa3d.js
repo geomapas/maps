@@ -3,6 +3,9 @@
 // VISTA 3D MAPLIBRE
 // ════════════════════════════════════════════════════════
 
+(function () {
+  var map3DInstance = null;
+
   // No se oculta ninguna herramienta al entrar/salir de 3D
   function setUIFor3D(entering) {}
 
