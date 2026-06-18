@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GEOmapas">
+<meta name="theme-color" content="#2f6fde">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>GEOmapas</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%232f6fde'/><path d='M32 10 C22 10 15 18 15 27 C15 40 32 56 32 56 C32 56 49 40 49 27 C49 18 42 10 32 10 Z' fill='none' stroke='white' stroke-width='3.5' stroke-linejoin='round'/><circle cx='32' cy='27' r='7' fill='none' stroke='white' stroke-width='3'/></svg>">
+
+<!-- Estilos -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
+<link rel="stylesheet" href="css/styles.css">
+
+<!-- Librerías externas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/shpjs/5.0.2/shp.js"></script>
+<script src="https://unpkg.com/tokml@0.4.0/tokml.js"></script>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <!-- cámara + pin -->
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2 C6.5 2 4 5 4 8 C4 13 10 19 10 19 C10 19 16 13 16 8 C16 5 13.5 2 10 2 Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+        <circle cx="10" cy="8" r="2.5" stroke="white" stroke-width="1.8"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text"><span class="geo">geo</span><span class="fotos">mapas</span></div>
+    </div>
+  </div>
+  <div class="header-sep"></div>
+  
+  <!-- Botón de Sincronización Cloud -->
+  <button id="cloud-auth-btn" title="Configurar cuenta en la nube">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/>
+      <line x1="12" y1="12" x2="12" y2="22"/>
+      <polyline points="16 16 12 12 8 16"/>
+    </svg>
+    <span>Mi Cuenta</span>
+  </button>
+
+  <!-- Botón Refrescar (solo móvil) -->
+  <button id="mobile-refresh-btn" style="display:none;" title="Recargar página" aria-label="Refrescar"
+    onclick="location.reload()"
+    style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.75);border:1.5px solid var(--border2);color:var(--text2);cursor:pointer;transition:all .2s;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </svg>
+  </button>
+  
+  <div class="status-pill"><span class="dot"></span>WMS activo</div>
+</header>
+
+<div id="parcel-tooltip"><span class="tt-id"></span><span class="tt-detail"></span></div>
+<div id="query-popup">
+  <button class="qp-close" id="qp-close-btn">✕</button>
+  <div class="qp-id" id="qp-id"></div>
+  <div class="qp-detail" id="qp-detail"></div>
+  <div class="qp-extra" id="qp-extra" style="display:none;">
+    <div class="qp-extra-row"><span class="qp-label">CSP</span><span id="qp-ext-csp">—</span></div>
+    <div class="qp-extra-row"><span class="qp-label">Coef. Reg.</span><span id="qp-ext-coef">—</span></div>
+    <div class="qp-extra-row"><span class="qp-label">Incidencias</span><span id="qp-ext-inc">—</span></div>
+    <div class="qp-extra-row"><span class="qp-label">Parcela Agr.</span><span id="qp-ext-parc">—</span></div>
+    <div class="qp-extra-row"><span class="qp-label">Municipio</span><span id="qp-ext-mun">—</span></div>
+  </div>
+  <button class="qp-expand-btn" id="qp-expand-btn" style="display:none;">
+    <span class="qp-expand-label">Más datos</span>
+    <svg class="qp-expand-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+</div>
+
+<!-- Hamburger para móvil -->
+<button id="menu-btn" aria-label="Menú">
+  <span></span><span></span><span></span>
+</button>
+
+<div class="main">
+  <aside class="sidebar">
+
+    <!-- Upload row: 3 columnas compactas -->
+    <div class="glass-card upload-row">
+      <div class="mini-drop" id="dropzone">
+        <input type="file" id="fileInput" accept="image/jpeg,image/jpg,image/tiff" multiple>
+        <span class="mini-drop-icon">📷</span>
+        <div class="mini-drop-title">Fotos</div>
+        <div class="mini-drop-sub">JPG / TIFF<br>con GPS</div>
+      </div>
+
+      <div class="mini-drop" id="shp-dropzone">
+        <input type="file" id="shpFileInput" accept=".shp,.dbf,.shx,.prj,.zip,.xml,.kml,.kmz" multiple>
+        <span class="mini-drop-icon">🗂️</span>
+        <div class="mini-drop-title">Vectorial</div>
+        <div class="mini-drop-sub">SHP · KML<br>KMZ · XML</div>
+      </div>
+      <div class="mini-drop" id="txt-dropzone">
+        <input type="file" id="txtFileInput" accept=".txt,.csv">
+        <span class="mini-drop-icon">📋</span>
+        <div class="mini-drop-title">Recintos</div>
+        <div class="mini-drop-sub">.txt con<br>códigos</div>
+      </div>
+    </div>
+
+    <!-- SIGPAC import progress -->
+    <div class="glass-card sigpac-import-card" id="sigpac-import-panel" style="display:none;">
+      <div class="sec-label">Importando recintos SIGPAC</div>
+      <div class="sigpac-progress" id="sigpac-progress" style="display:block;">
+        <div class="sigpac-progress-bar-wrap"><div class="sigpac-progress-bar" id="sigpac-pbar"></div></div>
+        <div class="sigpac-progress-label" id="sigpac-plabel">Consultando 0 / 0…</div>
+      </div>
+    </div>
+
+    <!-- Selector de modo consulta -->
+    <div id="query-switcher">
+      <button class="qs-btn" id="qs-none" data-mode="none">Sin consulta</button>
+      <button class="qs-btn" id="qs-recinto" data-mode="recinto">Recinto</button>
+      <button class="qs-btn" id="qs-cultivo" data-mode="cultivo">Cultivo</button>
+    </div>
+
+    <!-- Capas Iniciales -->
+    <div class="glass-card sigpac-card" id="initial-layers-card">
+      <div class="layers-card-header">
+        <div class="sec-label">Capas Iniciales</div>
+        <button class="layers-config-btn" id="initial-layers-config-btn" title="Configurar capas visibles">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+      <div class="layer-row" data-layer-key="recinto" style="margin-top:8px;">
+        <div class="layer-color" style="background:var(--magenta);"></div>
+        <div class="layer-texts">
+          <div class="layer-name" id="recinto-year-label">Recintos 2026</div>
+        </div>
+        <select class="year-sel" id="recinto-year-sel" title="Cambiar año de recintos"
+          onchange="setRecintoYear(this.value)">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+        </select>
+        <button class="layer-search-btn" id="search-recinto-btn" title="Buscar recinto">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <div class="toggle-wrap"><input type="checkbox" id="tog-recinto" checked><label for="tog-recinto"></label></div>
+      </div>
+      <div class="layer-row" data-layer-key="cultivo" style="margin-top:4px;">
+        <div class="layer-color" style="background:var(--green);"></div>
+        <div class="layer-texts"><div class="layer-name">Cultivo Declarado</div></div>
+        <div class="toggle-wrap"><input type="checkbox" id="tog-cultivo" checked><label for="tog-cultivo"></label></div>
+      </div>
+      <div class="layer-row" data-layer-key="ganaderia" style="margin-top:4px;">
+        <div class="layer-color" style="background:#e06c00;"></div>
+        <div class="layer-texts"><div class="layer-name">Explotaciones Ganaderas</div></div>
+        <button class="layer-search-btn" id="search-ganaderia-btn" title="Buscar explotación ganadera">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal configuración Capas Iniciales -->
+    <div id="initial-layers-modal">
+      <div class="layer-edit-card" style="max-width:300px;">
+        <div class="layer-edit-title">Configurar Capas Iniciales</div>
+        <input class="layer-edit-input" type="text" id="initial-layers-search" placeholder="Buscar capa…" autocomplete="off">
+        <div class="ilm-list" id="initial-layers-list">
+          <label class="ilm-row" data-layer-key="recinto" data-layer-name="recintos sigpac">
+            <span>Recintos SIGPAC</span>
+            <div class="toggle-wrap"><input type="checkbox" class="ilm-toggle" checked><label></label></div>
+          </label>
+          <label class="ilm-row" data-layer-key="cultivo" data-layer-name="cultivo declarado">
+            <span>Cultivo Declarado</span>
+            <div class="toggle-wrap"><input type="checkbox" class="ilm-toggle" checked><label></label></div>
+          </label>
+          <label class="ilm-row" data-layer-key="ganaderia" data-layer-name="explotaciones ganaderas">
+            <span>Explotaciones Ganaderas</span>
+            <div class="toggle-wrap"><input type="checkbox" class="ilm-toggle" checked><label></label></div>
+          </label>
+        </div>
+        <div class="layer-edit-actions">
+          <button class="layer-edit-cancel" id="initial-layers-close">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card layers-card" id="layers-card-drop">
+      <div class="layers-card-header">
+        <div class="sec-label">Capas del proyecto</div>
+        <span class="layers-count" id="layers-count">0</span>
+      </div>
+      <div id="shp-loading" style="display:none;" class="shp-loading">
+        <div class="shp-spin"></div> Procesando SHP…
+      </div>
+      <div class="unified-list" id="unifiedList">
+        <div class="empty-unified" id="unified-empty">Sin fotos ni capas.<br>Añade contenido arriba.</div>
+      </div>
+      <!-- Overlay drag & drop -->
+      <div class="layers-drop-overlay" id="layers-drop-overlay">
+        <div class="layers-drop-inner">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="layers-drop-label">Suelta aquí para cargar</span>
+          <div class="layers-drop-hint" id="layers-drop-hint">SHP · ZIP · KML · KMZ · JPG · TXT · CSV · XML</div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- Search panel -->
+  <div id="search-panel">
+    <div class="search-card">
+      <div class="search-card-header">
+        <div class="search-card-title" id="search-panel-title">Buscar recinto</div>
+        <button class="search-close" id="search-panel-close">✕</button>
+      </div>
+      <div class="search-fields" id="search-fields"></div>
+      <div class="search-footer">
+        <div class="search-add-row">
+          <div class="toggle-wrap" style="flex-shrink:0;">
+            <input type="checkbox" id="search-add-toggle">
+            <label for="search-add-toggle"></label>
+          </div>
+          <div class="search-add-label">Añadir selección a capas</div>
+        </div>
+        <button class="search-btn" id="search-btn-exec">Buscar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel búsqueda Ganadería -->
+  <div id="gan-search-panel">
+    <div class="search-card">
+      <div class="search-card-header">
+        <div class="search-card-title">Explotaciones Ganaderas</div>
+        <button class="search-close" id="gan-panel-close">✕</button>
+      </div>
+
+      <!-- Tabs: individual / lote -->
+      <div style="display:flex;border-bottom:1px solid var(--border);padding:0 14px;">
+        <button class="gan-tab active" id="gan-tab-single" data-tab="single">Individual</button>
+        <button class="gan-tab" id="gan-tab-batch" data-tab="batch">Por lote</button>
+      </div>
+
+      <!-- Tab individual -->
+      <div id="gan-panel-single" style="padding:10px 14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;">
+        <div style="display:flex;gap:8px;">
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1.2;">
+            <label class="gan-field-label">Provincia</label>
+            <select class="gan-select" id="gan-prov">
+              <option value="">— Selecciona —</option>
+              <option value="02">02 · Albacete</option>
+              <option value="13">13 · Ciudad Real</option>
+              <option value="16">16 · Cuenca</option>
+              <option value="19">19 · Guadalajara</option>
+              <option value="45">45 · Toledo</option>
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
+            <label class="gan-field-label">Municipio</label>
+            <input class="gan-input" id="gan-mun" type="number" min="1" max="999" placeholder="Ej: 6">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
+            <label class="gan-field-label">Explotación</label>
+            <input class="gan-input" id="gan-exp" type="number" min="1" placeholder="Ej: 5">
+          </div>
+        </div>
+        <div class="gan-cod-preview" id="gan-cod-preview"></div>
+        <div id="gan-results" class="gan-results"></div>
+      </div>
+
+      <!-- Tab por lote -->
+      <div id="gan-panel-batch" style="display:none;padding:10px 14px;display:none;flex-direction:column;gap:10px;overflow-y:auto;flex:1;">
+        <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text2);line-height:1.5;">
+          Introduce uno o varios códigos, uno por línea o separados por coma/punto y coma.<br>
+          <span style="color:var(--muted);font-size:10px;">Formatos válidos: <b>ES020030000030</b> · <b>2-3-30</b> · <b>2/3/30</b> · <b>02.003.0000030</b></span>
+        </div>
+        <textarea id="gan-batch-input" style="width:100%;box-sizing:border-box;height:110px;font-family:'DM Sans',sans-serif;font-size:11px;border:1.5px solid var(--border);border-radius:8px;padding:8px;resize:vertical;outline:none;line-height:1.6;" placeholder="ES020030000030&#10;2-3-30&#10;ES130060000015"></textarea>
+        <div id="gan-batch-results" class="gan-results"></div>
+      </div>
+
+      <div class="search-footer" style="flex-direction:column;gap:6px;">
+        <button class="search-btn" id="gan-search-btn">Buscar explotación</button>
+        <button class="gan-load-btn" id="gan-load-map-btn" disabled style="opacity:.4;">Añadir al mapa</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+  <div id="map3d"></div>
+
+  <!-- Control de zoom independiente (visible siempre, en 2D y 3D) -->
+  <div id="zoom-ctrl">
+    <button id="zoom-in-btn"  title="Acercar">+</button>
+    <button id="zoom-out-btn" title="Alejar">−</button>
+  </div>
+  <button id="globe-btn" title="Coordenadas y enlaces externos">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+    </svg>
+  </button>
+  <div id="globe-popup">
+    <button class="gp-close" id="gp-close-btn">✕</button>
+    <div class="gp-title">Coordenadas</div>
+    <div class="gp-coords" id="gp-coords"></div>
+    <div class="gp-links">
+      <a class="gp-link earth" id="gp-earth-link" href="#" target="_blank" rel="noopener">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        Google Earth
+      </a>
+      <a class="gp-link maps" id="gp-maps-link" href="#" target="_blank" rel="noopener">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Google Maps
+      </a>
+    </div>
+  </div>
+
+  <div id="measure-popup"><div class="mp-text"><span id="measure-value"></span><span class="mp-sub" id="measure-sub"></span></div><button class="mp-close" id="measure-popup-close" title="Cerrar medición">✕</button></div>
+  <button id="draw-btn" title="Medir / Dibujar">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <polyline points="7 7 2 12 7 17"/>
+      <polyline points="17 7 22 12 17 17"/>
+    </svg>
+  </button>
+
+  <!-- Draw sub-buttons: área y línea (desktop) -->
+  <button id="draw-sub-area" title="Dibujar área (polígono)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+    Área
+  </button>
+  <button id="draw-sub-line" title="Dibujar línea">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4"/></svg>
+    Línea
+  </button>
+
+  <!-- Botón de consulta desktop (lupa) -->
+  <button id="desktop-query-btn" title="Consultas">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  </button>
+  <div id="desktop-query-submenu">
+    <button class="dqs-btn" id="dqs-recinto" data-mode="recinto">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      Recinto
+    </button>
+    <button class="dqs-btn" id="dqs-cultivo" data-mode="cultivo">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22V12M12 12C12 7 7 3 2 3c0 5 3 9 10 9zM12 12c0-5 5-9 10-9-0 5-3 9-10 9z"/></svg>
+      Cultivo
+    </button>
+  </div>
+
+  <!-- Botón herramienta selección (desktop) -->
+  <button id="select-tool-btn" title="Seleccionar geometrías para nuevo SHP">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="3"/>
+      <polyline points="7 13 10.5 16.5 17 9"/>
+    </svg>
+  </button>
+
+  <div id="draw-hint">Clic para añadir vértices · Doble clic para cerrar</div>
+
+  <!-- Desktop GPS Measure button -->
+  <button id="desktop-gps-btn" title="Medición GPS">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  </button>
+
+  <!-- Desktop GPS Measure Bar (popup) -->
+
+  <button id="geolocate-btn" title="Mi ubicación">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      <path d="M12 2a10 10 0 100 20A10 10 0 0012 2z" stroke-dasharray="none" opacity=".25"/>
+    </svg>
+  </button>
+  <div id="basemap-switcher">
+    <button class="bm-btn" id="bm-sat" onclick="setBasemap('sat')" style="display:none">Satélite</button>
+    <button class="bm-btn" id="bm-osm" onclick="setBasemap('osm')">Calles</button>
+    <button class="bm-btn active" id="bm-earth" onclick="setBasemap('earth')">Earth</button>
+    <button class="bm-btn" id="bm-sigpac" onclick="setBasemap('sigpac')">SIGPAC</button>
+    <button class="bm-btn" id="bm-3d" onclick="toggle3D()">3D</button>
+    <div id="orto-year-wrap" style="display:none;align-items:center;padding:0 2px 0 1px;">
+      <select id="orto-year-sel" class="year-sel" title="Año de ortofoto"
+        onchange="setOrtoYear(this.value)">
+        <option value="2024">2024</option>
+        <option value="2022">2022</option>
+        <option value="2018">2018</option>
+        <option value="2015">2015</option>
+        <option value="2012">2012</option>
+      </select>
+    </div>
+  </div>
+  <div id="imagery-date">Google Earth</div>
+</div>
+
+  <div id="desktop-gps-bar" class="tool-bar-panel">
+    <div class="tool-bar-row dsk-gps-bar-row" id="dsk-gps-btn-row">
+      <button class="tool-type-btn active" id="dsk-gps-type-area">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        Área
+      </button>
+      <button class="tool-type-btn" id="dsk-gps-type-line">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h18"/></svg>
+        Línea
+      </button>
+      <div class="tool-state-label" id="desktop-gps-state-label">Sin iniciar</div>
+      <div id="dsk-gps-pts-label" style="font-family:'DM Sans',sans-serif;font-size:9px;color:var(--muted);min-width:60px;text-align:center;"></div>
+      <button class="tool-ctrl-btn" id="dsk-gps-play-btn" title="Iniciar / Reanudar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <button class="tool-ctrl-btn" id="dsk-gps-pause-btn" title="Pausar" disabled>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <button class="tool-ctrl-btn" id="dsk-gps-stop-btn" title="Finalizar y guardar" disabled>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        Guardar
+      </button>
+      <button class="tool-action-btn btn-back" id="dsk-gps-reset-btn" title="Borrar último punto (solo en pausa)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg>
+      </button>
+      <button class="tool-action-btn btn-cancel" id="dsk-gps-clear-btn" title="Resetear medición" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="tool-measure-info" id="desktop-gps-measure"></div>
+    <div id="dsk-gps-mob-info" style="display:none;font-family:'DM Sans',monospace;font-size:9px;color:var(--muted);text-align:center;letter-spacing:.06em;text-transform:uppercase;"></div>
+  </div>
+
+<!-- Modal Compartir Capa -->
+<div class="share-modal" id="shareModal">
+  <div class="share-card">
+    <div class="share-title">Descargar / Compartir</div>
+    <div class="share-sub" id="shareSub"></div>
+
+    <!-- Sección descarga -->
+    <div style="font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Descargar como</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <button class="share-btn secondary" id="shareDlKml" style="flex:1;font-size:10px;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:middle;"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>KML
+      </button>
+      <button class="share-btn secondary" id="shareDlShp" style="flex:1;font-size:10px;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:middle;"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>SHP
+      </button>
+      <button class="share-btn secondary" id="shareDlXlsx" style="flex:1;font-size:10px;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:middle;"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Excel
+      </button>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
+    <!-- Sección compartir con usuario -->
+    <div style="font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Compartir con usuario</div>
+    <input type="text" class="share-input" id="shareEmail" placeholder="usuario@correo.com, otro@correo.com" autocomplete="off">
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0 2px;">
+      <div class="toggle-wrap" style="flex-shrink:0;">
+        <input type="checkbox" id="shareCollabToggle">
+        <label for="shareCollabToggle"></label>
+      </div>
+      <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text2);line-height:1.4;">
+        <b style="color:var(--text);">Modo colaborativo</b><br>
+        Los destinatarios podrán modificar el checklist en tiempo real.
+      </div>
+    </div>
+    <div class="share-actions">
+      <button class="share-btn secondary" id="shareCancel">Cancelar</button>
+      <button class="share-btn secondary" id="shareLinkBtn" title="Generar enlace público">🔗 Enlace</button>
+      <button class="share-btn primary" id="shareSend">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal enlace público -->
+<!-- Modal: Añadir capa a... -->
+<div class="share-modal" id="addToLayerModal">
+  <div class="share-card" style="max-width:340px;">
+    <div class="share-title">Añadir capa a:</div>
+    <select id="addToLayerSelect" style="width:100%;height:36px;padding:0 10px;margin:14px 0 18px;
+      border:1.5px solid var(--border2);border-radius:8px;font-family:'DM Sans',sans-serif;
+      font-size:13px;background:var(--surface);color:var(--text);cursor:pointer;">
+      <option value="__new__">— Nueva capa vectorial —</option>
+    </select>
+    <div class="share-actions">
+      <button class="share-btn secondary" id="addToLayerCancel">Cancelar</button>
+      <button class="share-btn primary" id="addToLayerSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="share-modal" id="shareLinkModal">
+  <div class="share-card">
+    <div class="share-title">Enlace público</div>
+    <div class="share-sub" id="shareLinkSub">Generando enlace…</div>
+    <div id="shareLinkBox" style="display:none; background:var(--s3); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family:monospace; font-size:11px; color:var(--text); word-break:break-all; margin:8px 0; user-select:all; cursor:text;"></div>
+    <div class="share-actions" id="shareLinkActions" style="display:none; flex-wrap:wrap; gap:6px;">
+      <button class="share-btn secondary" id="shareLinkCopy">📋 Copiar</button>
+      <button class="share-btn secondary" id="shareLinkWhatsApp">💬 WhatsApp</button>
+      <button class="share-btn secondary" id="shareLinkEmail">✉️ Correo</button>
+    </div>
+    <div class="share-actions" style="margin-top:8px;">
+      <button class="share-btn secondary" id="shareLinkClose">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Banner "capa compartida" -->
+<div id="share-banner" style="display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9000; background:var(--glass); border:1.5px solid var(--blue); border-radius:14px; padding:12px 18px; box-shadow:var(--shadow); backdrop-filter:blur(16px); font-family:'DM Sans',sans-serif; max-width:calc(100vw - 32px); width:420px;">
+  <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px;" id="share-banner-title">Capa compartida</div>
+  <div style="font-size:11px; color:var(--muted); margin-bottom:10px;" id="share-banner-sub">¿Quieres añadirla a tu proyecto?</div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button class="share-btn primary" id="share-banner-add">Añadir a mi proyecto</button>
+    <button class="share-btn secondary" id="share-banner-discard">Descartar</button>
+  </div>
+</div>
+
+<!-- Modal Invitaciones entrantes -->
+<div class="incoming-modal" id="incomingModal">
+  <div class="share-card">
+    <div class="share-title">Capas compartidas contigo</div>
+    <div class="share-sub">Acepta para añadirlas a tu proyecto o recházalas</div>
+    <div class="incoming-list" id="incomingList"></div>
+    <div class="share-actions" style="margin-top:16px;">
+      <button class="share-btn secondary" id="incomingClose">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ══════════════════════════════════════════════════════
+     CONTROLES EXCLUSIVOS MÓVIL (display:none en escritorio)
+     ═══════════════════════════════════════════════════════ -->
+
+<!-- GPS flotante superior izquierda -->
+<button id="mob-gps-btn" style="display:none;" title="Mi ubicación GPS" aria-label="GPS">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+    <path d="M12 2a10 10 0 100 20A10 10 0 0012 2z" opacity=".25"/>
+  </svg>
+</button>
+
+<!-- Capas flotante superior derecha -->
+<button id="mob-layers-btn" style="display:none;" title="Capas" aria-label="Capas">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+    <polyline points="2 17 12 22 22 17"/>
+    <polyline points="2 12 12 17 22 12"/>
+  </svg>
+</button>
+
+<!-- Panel de capas móvil -->
+<div id="mob-layers-panel">
+  <div class="mob-panel-header">
+    <span class="mob-panel-title">Capas</span>
+    <button class="mob-panel-close" id="mob-layers-close">✕</button>
+  </div>
+  <div class="mob-panel-scroll">
+    <!-- Sección SIGPAC -->
+    <div class="mob-sigpac-section">
+      <span class="mob-sec-label">Capas SIGPAC</span>
+      <div class="mob-layer-row">
+        <div class="mob-layer-color" style="background:var(--magenta);"></div>
+        <div class="mob-layer-name" id="mob-recinto-year-label">Recintos 2026</div>
+        <button class="mob-search-lupa" id="mob-search-recinto-btn" title="Buscar recinto">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <div class="mob-toggle-wrap">
+          <input type="checkbox" id="mob-tog-recinto" checked>
+          <label for="mob-tog-recinto"></label>
+        </div>
+      </div>
+
+      <div class="mob-layer-row" style="margin-top:6px;">
+        <div class="mob-layer-color" style="background:var(--green);"></div>
+        <div class="mob-layer-name">Cultivo Declarado</div>
+        <div class="mob-toggle-wrap">
+          <input type="checkbox" id="mob-tog-cultivo" checked>
+          <label for="mob-tog-cultivo"></label>
+        </div>
+      </div>
+
+      <div class="mob-layer-row" style="margin-top:6px;">
+        <div class="mob-layer-color" style="background:#e06c00;"></div>
+        <div class="mob-layer-name">Explotaciones Ganaderas</div>
+        <button class="mob-search-lupa" id="mob-search-gan-btn" title="Buscar explotación">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="mob-divider"></div>
+
+    <!-- Sección capas del proyecto -->
+    <div class="mob-project-section">
+      <div class="mob-project-header">
+        <span class="mob-sec-label" style="margin-bottom:0;">Capas del proyecto</span>
+        <span class="mob-layers-count" id="mob-layers-count">0</span>
+      </div>
+      <div id="mob-project-list">
+        <div id="mob-project-empty" style="font-family:'DM Sans',monospace;font-size:9px;color:var(--muted);text-align:center;padding:16px 0;">Sin capas de proyecto</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel búsqueda móvil — Recintos (bottom sheet) -->
+<div id="mob-search-recinto-panel" class="mob-bottom-sheet">
+  <div class="mob-sheet-handle"></div>
+  <div class="mob-sheet-header">
+    <div class="mob-sheet-title">Buscar recinto</div>
+    <button class="mob-sheet-close" id="mob-search-recinto-close">✕</button>
+  </div>
+  <div class="mob-sheet-body" id="mob-recinto-fields"></div>
+  <div class="mob-sheet-footer">
+    <div class="search-add-row" style="margin-bottom:6px;">
+      <div class="toggle-wrap" style="flex-shrink:0;">
+        <input type="checkbox" id="mob-search-add-toggle">
+        <label for="mob-search-add-toggle"></label>
+      </div>
+      <div class="search-add-label">Añadir selección a capas</div>
+    </div>
+    <button class="search-btn" id="mob-recinto-search-exec">Buscar</button>
+  </div>
+</div>
+
+<!-- Panel búsqueda móvil — Ganadería (bottom sheet) -->
+<div id="mob-gan-panel" class="mob-bottom-sheet">
+  <div class="mob-sheet-handle"></div>
+  <div class="mob-sheet-header">
+    <div class="mob-sheet-title">Explotaciones Ganaderas</div>
+    <button class="mob-sheet-close" id="mob-gan-close">✕</button>
+  </div>
+  <!-- Tabs -->
+  <div style="display:flex;border-bottom:1px solid var(--border);padding:0 14px;">
+    <button class="gan-tab active" id="mob-gan-tab-single" data-tab="single">Individual</button>
+    <button class="gan-tab" id="mob-gan-tab-batch" data-tab="batch">Por lote</button>
+  </div>
+  <div class="mob-sheet-body">
+    <!-- Tab individual -->
+    <div id="mob-gan-panel-single">
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1.2;">
+          <label class="gan-field-label">Provincia</label>
+          <select class="gan-select" id="mob-gan-prov">
+            <option value="">— Selecciona —</option>
+            <option value="02">02 · Albacete</option>
+            <option value="13">13 · Ciudad Real</option>
+            <option value="16">16 · Cuenca</option>
+            <option value="19">19 · Guadalajara</option>
+            <option value="45">45 · Toledo</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;">
+          <label class="gan-field-label">Municipio</label>
+          <input class="gan-input" id="mob-gan-mun" type="number" min="1" max="999" placeholder="Ej: 6">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;">
+          <label class="gan-field-label">Explotación</label>
+          <input class="gan-input" id="mob-gan-exp" type="number" min="1" placeholder="Ej: 5">
+        </div>
+      </div>
+      <div class="gan-cod-preview" id="mob-gan-preview"></div>
+      <div id="mob-gan-results" class="gan-results" style="max-height:160px;overflow-y:auto;margin-top:6px;"></div>
+    </div>
+    <!-- Tab por lote -->
+    <div id="mob-gan-panel-batch" style="display:none;">
+      <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:8px;">
+        Uno por línea o separados por coma/punto y coma.<br>
+        <span style="color:var(--muted);font-size:10px;">Ej: <b>ES020030000030</b> · <b>2-3-30</b></span>
+      </div>
+      <textarea id="mob-gan-batch-input" style="width:100%;box-sizing:border-box;height:100px;font-family:'DM Sans',sans-serif;font-size:11px;border:1.5px solid var(--border);border-radius:8px;padding:8px;resize:vertical;outline:none;line-height:1.6;" placeholder="ES020030000030&#10;2-3-30"></textarea>
+      <div id="mob-gan-batch-results" class="gan-results" style="max-height:120px;overflow-y:auto;margin-top:6px;"></div>
+    </div>
+  </div>
+  <div class="mob-sheet-footer" style="flex-direction:column;gap:6px;">
+    <button class="search-btn" id="mob-gan-search-btn">Buscar explotación</button>
+    <button class="gan-load-btn" id="mob-gan-load-btn" disabled style="opacity:.4;">Añadir al mapa</button>
+  </div>
+</div>
+<button id="mob-raster-btn" style="display:none;" aria-label="Capa base">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+  </svg>
+  <span id="mob-raster-label">Earth</span>
+</button>
+<div id="mob-raster-panel">
+  <button class="mob-raster-opt" data-bm="earth" onclick="mobSetBasemap('earth')">Earth</button>
+  <button class="mob-raster-opt" data-bm="osm"   onclick="mobSetBasemap('osm')">Calles</button>
+  <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;">
+    <button class="mob-raster-opt" data-bm="sigpac" style="flex:1;padding:7px 8px;" onclick="mobSetBasemap('sigpac')">SIGPAC</button>
+    <select class="mob-raster-year" id="mob-orto-year-sel" onchange="setOrtoYear(this.value);if(activeBasemap==='sigpac')document.getElementById('mob-raster-label').textContent='SIGPAC '+this.value;">
+      <option value="2024">2024</option>
+      <option value="2022">2022</option>
+      <option value="2018">2018</option>
+      <option value="2015">2015</option>
+      <option value="2012">2012</option>
+    </select>
+  </div>
+</div>
+
+<!-- Zona herramientas inferior izquierda -->
+<div id="mob-tools-zone" style="display:none;">
+
+  <!-- Botón 3D móvil (primero en HTML = más abajo con column-reverse) -->
+  <div style="position:relative; display:flex; flex-direction:row; gap:8px;" id="mob-3d-row">
+    <button class="mob-tool-btn" id="mob-btn-3d" title="Vista 3D" aria-label="Vista 3D" style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;">3D</button>
+    <!-- Brújula para resetear norte (sólo visible en modo 3D) -->
+    <button class="mob-tool-btn" id="mob-3d-compass" title="Resetear norte" aria-label="Resetear norte" style="display:none;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="12" cy="12" r="10"/>
+        <polygon points="12,3 10,12 12,10 14,12" fill="currentColor" stroke="none"/>
+        <polygon points="12,21 14,12 12,14 10,12" fill="#aaa" stroke="none"/>
+        <line x1="12" y1="2" x2="12" y2="5" stroke-width="2"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Botón 1: medir/dibujar en pantalla -->
+  <div style="position:relative;">
+    <button class="mob-tool-btn" id="mob-draw-direct-btn" title="Medir / Dibujar" aria-label="Medir / Dibujar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <polyline points="7 7 2 12 7 17"/>
+        <polyline points="17 7 22 12 17 17"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Botón 2: medición GPS -->
+  <div style="position:relative;">
+    <button class="mob-tool-btn" id="mob-gpsmeasure-toggle" title="Medición GPS" aria-label="Medición GPS">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/>
+        <circle cx="12" cy="10" r="3"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Botón 3: selección geometrías -->
+  <div style="position:relative;">
+    <button class="mob-tool-btn" id="mob-select-btn" title="Seleccionar geometrías" aria-label="Seleccionar geometrías">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <polyline points="7 13 10.5 16.5 17 9"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Botón 4: consulta coordenadas (globo) -->
+  <div style="position:relative;">
+    <button class="mob-tool-btn" id="mob-globe-direct-btn" title="Coordenadas" aria-label="Coordenadas">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Botón 5: consultas SIGPAC (lupa) -->
+  <div style="position:relative;" id="mob-query-btn">
+    <button class="mob-tool-btn" id="mob-query-toggle" title="Consultas" aria-label="Consultas">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </button>
+    <div id="mob-query-submenu">
+      <button class="mob-query-opt" id="mob-qs-recinto" data-mode="recinto">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Recinto
+      </button>
+      <button class="mob-query-opt" id="mob-qs-cultivo" data-mode="cultivo">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22V12M12 12C12 7 7 3 2 3c0 5 3 9 10 9zM12 12c0-5 5-9 10-9-0 5-3 9-10 9z"/></svg>
+        Cultivo
+      </button>
+      <button class="mob-query-opt" id="mob-qs-none" data-mode="none" style="display:none;"></button>
+    </div>
+  </div>
+
+
+  <!-- Hidden compat elements for old JS references -->
+  <div style="display:none;">
+    <div id="mob-gpsmeasure-btn"></div>
+    <button id="mob-wrench-btn"></button>
+    <div id="mob-tools-submenu">
+      <button class="mob-submenu-btn" id="mob-sub-globe"></button>
+      <button class="mob-submenu-btn" id="mob-sub-area"></button>
+      <button class="mob-submenu-btn" id="mob-sub-line"></button>
+      <button class="mob-submenu-btn" id="mob-sub-draw"></button>
+    </div>
+    <!-- Old GPS submenu elements kept for JS compat -->
+    <div id="mob-gpsmeasure-submenu">
+      <div class="mob-gps-state" id="mob-gps-state">Sin iniciar</div>
+      <div><button id="mob-gps-type-area"></button><button id="mob-gps-type-line"></button></div>
+      <div class="mob-gps-controls">
+        <button class="mob-gps-ctrl-btn" id="mob-gps-play-btn"></button>
+        <button class="mob-gps-ctrl-btn" id="mob-gps-pause-btn" disabled></button>
+        <button class="mob-gps-ctrl-btn" id="mob-gps-stop-btn" disabled></button>
+      </div>
+      <div id="mob-gps-pts-label"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Barra de dibujo móvil (aparece en la parte superior del mapa) -->
+<div id="mob-draw-bar" class="tool-bar-panel">
+  <div class="tool-bar-row">
+    <button class="tool-type-btn active" id="mob-draw-bar-area">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Área
+    </button>
+    <button class="tool-type-btn" id="mob-draw-bar-line">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h18"/></svg>
+      Línea
+    </button>
+    <button class="tool-type-btn" id="mob-draw-bar-point">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.686 2 6 4.686 6 8c0 5 6 14 6 14s6-9 6-14c0-3.314-2.686-6-6-6z"/><circle cx="12" cy="8" r="2" fill="currentColor" stroke="none"/></svg>
+      Punto
+    </button>
+    <button class="tool-action-btn btn-back" id="mob-draw-bar-back" title="Borrar último punto">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg>
+    </button>
+    <button class="tool-action-btn btn-cancel" id="mob-draw-bar-close" title="Cancelar dibujo">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <button class="tool-action-btn btn-save" id="mob-draw-bar-save" title="Guardar y añadir a capas">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Guardar
+    </button>
+  </div>
+  <div class="tool-measure-info" id="mob-draw-measure"></div>
+</div>
+
+<!-- Barra de selección (escritorio + móvil) -->
+<div id="sel-tool-bar" class="tool-bar-panel">
+  <div class="tool-bar-row">
+    <label class="tool-label">Capa:</label>
+    <select id="sel-tool-layer" class="tool-layer-select"></select>
+    <span id="sel-tool-count" class="tool-count-label sel-count-desktop">0 seleccionadas</span>
+    <button class="tool-action-btn btn-back" id="sel-tool-back" title="Deshacer última selección">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg>
+    </button>
+    <button class="tool-action-btn btn-cancel" id="sel-tool-close" title="Cancelar">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <button class="tool-action-btn btn-delete" id="sel-tool-delete" title="Borrar geometría de la capa" style="display:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      <span class="sel-btn-text">Borrar</span>
+    </button>
+    <button class="tool-action-btn btn-save" id="sel-tool-save" title="Guardar selección como capa">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <span class="sel-btn-text">Guardar</span>
+    </button>
+  </div>
+  <div class="tool-bar-row sel-count-mobile-row">
+    <span class="tool-count-label">0 seleccionadas</span>
+  </div>
+</div>
+
+
+<!-- Confirm delete modal móvil -->
+<div id="mob-delete-confirm">
+  <div class="mob-confirm-card">
+    <div class="mob-confirm-title">Eliminar capa</div>
+    <div class="mob-confirm-sub" id="mob-confirm-sub">¿Eliminar esta capa? Esta acción no se puede deshacer y la capa también se borrará de la nube si está sincronizada.</div>
+    <div class="mob-confirm-actions">
+      <button class="mob-confirm-cancel" id="mob-confirm-cancel">Cancelar</button>
+      <button class="mob-confirm-delete" id="mob-confirm-delete">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Autenticación en la Nube -->
+<div class="auth-modal" id="authModal">
+  <div class="auth-card">
+    <button class="auth-close" id="authModalClose">✕</button>
+    <div class="auth-title" id="authModalTitle">Sincronización en la Nube</div>
+    
+    <!-- Vista del usuario conectado -->
+    <div id="authViewUser" style="display:none;">
+      <div class="auth-user-info">
+        <div>
+          <span style="font-size:9px;color:var(--muted);font-family:'DM Sans';display:block;">CONECTADO COMO</span>
+          <span class="auth-user-email" id="authActiveEmail">usuario@correo.com</span>
+        </div>
+        <span style="font-size:18px;">☁️</span>
+      </div>
+      <p style="font-size:10px;color:var(--muted);line-height:1.4;margin-bottom:12px;font-family:'DM Sans';">
+        Tus capas SHP, KML y XML del proyecto se sincronizarán y descargarán automáticamente en este y cualquier otro dispositivo en el que inicies sesión.
+      </p>
+      <div class="auth-actions-row">
+        <button class="auth-main-btn" id="authLogoutBtn" style="background:var(--danger);">Cerrar Sesión</button>
+      </div>
+    </div>
+
+    <!-- Formulario para iniciar sesión o registrarse -->
+    <div id="authViewForm">
+      <form id="authForm" onsubmit="event.preventDefault();">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="auth-input-group">
+            <label for="authEmail">Correo Electrónico</label>
+            <input class="auth-input" type="email" id="authEmail" required placeholder="ejemplo@correo.com">
+          </div>
+          <div class="auth-input-group">
+            <label for="authPassword">Contraseña</label>
+            <input class="auth-input" type="password" id="authPassword" required placeholder="••••••••" minlength="6">
+          </div>
+          <div class="auth-actions-row">
+            <button class="auth-main-btn" id="authPrimaryBtn">Iniciar Sesión</button>
+            <a class="auth-sub-link" id="authResetPassword" style="color:var(--muted);font-size:10px;">¿Olvidaste tu contraseña?</a>
+            <p style="font-size:12px;color:var(--muted);font-family:'DM Sans';text-align:center;margin-top:4px;line-height:1.4;">Las cuentas son creadas por el administrador. Si no tienes acceso, contacta con él. sgonzalez@geacam.com</p>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox">
+  <button id="lightbox-close">✕</button>
+  <img id="lightbox-img" src="" alt="">
+  <div id="lightbox-name"></div>
+</div>
+<div id="toast"></div>
+
+<!-- Modal edición de capa (entre bloques de script en el original) -->
+<!-- Modal edición de capa (nombre + color + campos personalizados) -->
+<div id="layer-edit-modal">
+  <div class="layer-edit-card wide">
+    <div class="layer-edit-title">Editar capa</div>
+    <div class="layer-edit-body">
+      <div class="layer-edit-col layer-edit-col-left">
+        <div class="layer-edit-field">
+          <div class="layer-edit-label">Nombre</div>
+          <input class="layer-edit-input" type="text" id="layer-edit-name" placeholder="Nombre de la capa">
+        </div>
+        <div class="layer-edit-field">
+          <div class="layer-edit-label">Color</div>
+          <div class="layer-edit-color-row">
+            <div class="layer-edit-color-preview" id="layer-edit-color-preview"></div>
+            <input class="layer-edit-color-input" type="color" id="layer-edit-color-input">
+            <span class="layer-edit-color-hint">Pulsa el cuadro para elegir color</span>
+            <div id="layer-edit-color-pop">
+              <div class="lec-swatches" id="lec-swatches"></div>
+              <div class="lec-pop-row">
+                <input class="lec-hex" id="lec-hex" type="text" maxlength="7" placeholder="#RRGGBB">
+                <button class="lec-more" id="lec-more" type="button" title="Más colores">＋</button>
+                <button class="lec-ok" id="lec-ok" type="button">Aceptar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Etiquetas -->
+        <div class="layer-edit-field lbl-section" id="lbl-section">
+          <div class="lbl-toggle-row">
+            <div class="layer-edit-label">Etiquetas</div>
+            <div class="toggle-wrap" style="flex-shrink:0;">
+              <input type="checkbox" id="lbl-visible-toggle">
+              <label for="lbl-visible-toggle"></label>
+            </div>
+          </div>
+          <div class="lbl-selects" id="lbl-selects">
+            <select class="lbl-select" id="lbl-field-0"><option value="">— Sin etiqueta —</option></select>
+            <select class="lbl-select" id="lbl-field-1"><option value="">— Sin etiqueta —</option></select>
+            <select class="lbl-select" id="lbl-field-2"><option value="">— Sin etiqueta —</option></select>
+          </div>
+          <!-- Color y tamaño de etiqueta -->
+          <div class="lbl-style-row">
+            <div class="lbl-style-group">
+              <div class="layer-edit-label" style="margin-bottom:4px;">Color texto</div>
+              <div class="layer-edit-color-row" style="position:relative;">
+                <div class="layer-edit-color-preview" id="lbl-color-preview" style="background:#ffffff; cursor:pointer;"></div>
+                <input class="layer-edit-color-input" type="color" id="lbl-color-input" value="#ffffff">
+                <div id="lbl-color-pop">
+                  <div class="lec-swatches" id="lbl-swatches"></div>
+                  <div class="lec-pop-row" style="justify-content:flex-end;">
+                    <button class="lec-more" id="lbl-more" type="button" title="Más colores">＋</button>
+                    <button class="lec-ok" id="lbl-ok" type="button">OK</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="lbl-style-group">
+              <div class="layer-edit-label" style="margin-bottom:4px;">Tamaño</div>
+              <select class="lbl-select" id="lbl-size" style="width:100%;">
+                <option value="10">10 px</option>
+                <option value="12">12 px</option>
+                <option value="14" selected>14 px</option>
+                <option value="16">16 px</option>
+                <option value="18">18 px</option>
+                <option value="20">20 px</option>
+                <option value="24">24 px</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="layer-edit-col layer-edit-col-right">
+        <div class="layer-edit-field cf-section">
+          <div class="layer-edit-label">Campos personalizados</div>
+          <div class="cf-hint">Se mostrarán en la pestaña «Checklist» de cada geometría y se guardarán como atributos al exportar.</div>
+          <div class="cf-rows" id="cf-rows">
+            <div class="cf-row"><span class="cf-row-num">1</span><input class="layer-edit-input cf-input" type="text" id="cf-field-0" maxlength="40" placeholder="Ej: Estado del cultivo"></div>
+            <div class="cf-row"><span class="cf-row-num">2</span><input class="layer-edit-input cf-input" type="text" id="cf-field-1" maxlength="40" placeholder="Campo personalizado 2"></div>
+            <div class="cf-row"><span class="cf-row-num">3</span><input class="layer-edit-input cf-input" type="text" id="cf-field-2" maxlength="40" placeholder="Campo personalizado 3"></div>
+            <div class="cf-row"><span class="cf-row-num">4</span><input class="layer-edit-input cf-input" type="text" id="cf-field-3" maxlength="40" placeholder="Campo personalizado 4"></div>
+            <div class="cf-row"><span class="cf-row-num">5</span><input class="layer-edit-input cf-input" type="text" id="cf-field-4" maxlength="40" placeholder="Campo personalizado 5"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="layer-edit-actions">
+      <button class="layer-edit-cancel" id="layer-edit-cancel">Cancelar</button>
+      <button class="layer-edit-save" id="layer-edit-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Estilos del popup de MapLibre adaptados al diseño de GEOmaps -->
+<style>
+.ml-popup-geomaps .maplibregl-popup-content {
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.18);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  overflow: hidden;
+  min-width: 220px;
+}
+.ml-popup-geomaps .maplibregl-popup-close-button {
+  font-size: 16px;
+  padding: 4px 8px;
+  color: #666;
+  z-index: 1;
+}
+.ml-popup-geomaps #ml-popup-inner {
+  padding: 10px 12px 12px;
+}
+</style>
+
+</body>
+
+<!-- Módulos JS (orden de carga importante) -->
+<script src="js/config.js"></script>
+<script src="js/mapa.js"></script>
+<script src="js/capas-sigpac.js"></script>
+<script src="js/fotos.js"></script>
+<script src="js/sidebar.js"></script>
+<script src="js/consulta-wms.js"></script>
+<script src="js/capas-shp.js"></script>
+<script src="js/shp-writer.js"></script>
+<script src="js/txt-import.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/movil.js"></script>
+<script src="js/gps-desktop.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/seleccion.js"></script>
+<script src="js/checklist.js"></script>
+<script src="js/mapa3d.js"></script>
+</body>
+</html>
