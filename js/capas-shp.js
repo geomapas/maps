@@ -750,7 +750,8 @@ function applyLayerFilter(layer) {
 
   layer.polyLayer?.eachLayer(sub => {
     const props   = sub.feature?.properties || {};
-    const matches = filters.some(f =>
+    // AND entre filtros distintos, OR entre los valores de un mismo filtro
+    const matches = filters.every(f =>
       f.values.some(v => String(props[f.field] ?? '').trim().toUpperCase() === v.toUpperCase())
     );
     sub.setStyle(matches
@@ -763,7 +764,8 @@ function applyLayerFilter(layer) {
 
   layer.pinLayer?.eachLayer(sub => {
     const props   = sub.feature?.properties || {};
-    const matches = filters.some(f =>
+    // AND entre filtros distintos, OR entre los valores de un mismo filtro
+    const matches = filters.every(f =>
       f.values.some(v => String(props[f.field] ?? '').trim().toUpperCase() === v.toUpperCase())
     );
     sub.setOpacity(matches ? 1 : 0);
@@ -810,7 +812,8 @@ function extractFilteredLayer(layer, filters) {
 
   const matched = allFeatures.filter(f => {
     const props = f.properties || {};
-    return active.some(filt =>
+    // AND entre filtros distintos, OR entre los valores de un mismo filtro
+    return active.every(filt =>
       filt.values.some(v => String(props[filt.field] ?? '').trim().toUpperCase() === v.toUpperCase())
     );
   });
