@@ -25,6 +25,15 @@
   if (!bar || !dskBtn) return;
 
   const deleteBtn = document.getElementById('sel-tool-delete');
+  const polyBtn   = document.getElementById('sel-tool-poly');
+  const drawHintEl = document.getElementById('draw-hint');
+
+  // ── Estado del modo "seleccionar dibujando un polígono" ──
+  let selPolyMode    = false;
+  let selDrawPoints  = [];
+  let selDrawMarkers = [];
+  let selDrawPreview = null;
+  let selDrawPoly    = null;
 
   function refreshCount() {
     const n = selFeatures.length;
@@ -35,6 +44,15 @@
   function updateDeleteBtnVisibility() {
     const isOwnLayer = selSource !== 'recinto' && selSource !== 'cultivo';
     deleteBtn.style.display = isOwnLayer ? '' : 'none';
+  }
+  function updatePolyBtnVisibility() {
+    const disabled = selSource === 'cultivo';
+    polyBtn.disabled = disabled;
+    polyBtn.style.opacity = disabled ? '0.35' : '1';
+    polyBtn.style.cursor  = disabled ? 'not-allowed' : 'pointer';
+    polyBtn.title = disabled
+      ? 'No disponible para Cultivo declarado (solo consulta puntual)'
+      : 'Seleccionar recintos dentro de un polígono dibujado';
   }
 
   function buildLayerOptions() {
@@ -49,6 +67,7 @@
     layerSel.value = opts.some(o => o.value === prev) ? prev : 'recinto';
     selSource = layerSel.value; window._selSource = selSource;
     updateDeleteBtnVisibility();
+    updatePolyBtnVisibility();
   }
   function clearSelection() {
     selFeatures.forEach(s => { if (s.hl) map.removeLayer(s.hl); });
@@ -84,6 +103,7 @@
   window.openSelBar = openSelBar;
 
   function closeSelBar() {
+    if (selPolyMode) cancelSelPoly();
     selActive = false; window._selActive = false;
     dskBtn.classList.remove('active');
     if (mobBtn) mobBtn.classList.remove('active');
@@ -262,7 +282,7 @@
     }
 
     if (!hit) return;
-    const key = layerId + ':' + (hit._leaflet_id || JSON.stringify(hit.feature.properties));
+    const key = layerId + ':' + (hit.feature.properties?.__gid || hit._leaflet_id || JSON.stringify(hit.feature.properties));
 
     // Toggle: si ya está seleccionado, deseleccionar
     const existingIdx = selFeatures.findIndex(s => s.key === key);
@@ -281,8 +301,20 @@
 
   dskBtn.addEventListener('click', () => { selActive ? closeSelBar() : openSelBar(); });
   if (mobBtn) mobBtn.addEventListener('click', () => { selActive ? closeSelBar() : openSelBar(); });
-  layerSel.addEventListener('change', () => { selSource = layerSel.value; window._selSource = selSource; clearSelection(); updateDeleteBtnVisibility(); });
+  layerSel.addEventListener('change', () => {
+    if (selPolyMode) cancelSelPoly();
+    selSource = layerSel.value; window._selSource = selSource;
+    clearSelection(); updateDeleteBtnVisibility(); updatePolyBtnVisibility();
+  });
   backBtn.addEventListener('click', () => {
+    if (selPolyMode) {
+      if (!selDrawPoints.length) return;
+      const m = selDrawMarkers.pop();
+      if (m) map.removeLayer(m);
+      selDrawPoints.pop();
+      refreshSelPolyLine();
+      return;
+    }
     const last = selFeatures.pop();
     if (last && last.hl) map.removeLayer(last.hl);
     refreshCount();
@@ -360,6 +392,196 @@
     refreshCount();
     toast(`${removed} geometría${removed > 1 ? 's' : ''} eliminada${removed > 1 ? 's' : ''} de "${layer.name}"`, 'ok');
   });
+
+  // ═══════════════════════════════════════════════════════════
+  // SELECCIÓN POR POLÍGONO DIBUJADO
+  // ═══════════════════════════════════════════════════════════
+  polyBtn.addEventListener('click', () => {
+    if (polyBtn.disabled) return;
+    selPolyMode ? cancelSelPoly() : startSelPoly();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && selPolyMode) { cancelSelPoly(); toast('Selección por polígono cancelada'); }
+  });
+
+  function startSelPoly() {
+    if (selSource === 'cultivo') { toast('No disponible para Cultivo declarado', 'err'); return; }
+    selPolyMode = true;
+    selDrawPoints = []; selDrawMarkers = [];
+    polyBtn.classList.add('active');
+    map.off('click', onSelClick);
+    map.getContainer().style.cursor = 'crosshair';
+    if (drawHintEl) {
+      drawHintEl.textContent = 'Clic para añadir vértices del polígono · Doble clic para seleccionar · Esc para cancelar';
+      drawHintEl.classList.add('show');
+    }
+    map.on('click', onSelPolyClick);
+    map.on('mousemove', onSelPolyMove);
+    if (!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) map.on('dblclick', onSelPolyFinish);
+  }
+
+  function cancelSelPoly() {
+    selPolyMode = false;
+    polyBtn.classList.remove('active');
+    map.off('click', onSelPolyClick);
+    map.off('mousemove', onSelPolyMove);
+    map.off('dblclick', onSelPolyFinish);
+    if (drawHintEl) drawHintEl.classList.remove('show');
+    if (selDrawPoly)    { map.removeLayer(selDrawPoly);    selDrawPoly    = null; }
+    if (selDrawPreview) { map.removeLayer(selDrawPreview); selDrawPreview = null; }
+    selDrawMarkers.forEach(m => map.removeLayer(m));
+    selDrawMarkers = [];
+    selDrawPoints  = [];
+    if (selActive) {
+      map.getContainer().style.cursor = 'crosshair';
+      map.on('click', onSelClick);
+    }
+  }
+
+  function onSelPolyClick(e) {
+    if (e.originalEvent._drawSkip) return;
+    selDrawPoints.push(e.latlng);
+    const marker = L.circleMarker(e.latlng, {
+      radius: 5, color: '#7b1fa2', fillColor: '#7b1fa2', fillOpacity: 1, weight: 2, interactive: false
+    }).addTo(map);
+    selDrawMarkers.push(marker);
+    refreshSelPolyLine();
+  }
+
+  function onSelPolyMove(e) {
+    if (!selPolyMode || selDrawPoints.length === 0) return;
+    if (selDrawPreview) map.removeLayer(selDrawPreview);
+    const pts = [...selDrawPoints, e.latlng];
+    if (selDrawPoints.length >= 2) pts.push(selDrawPoints[0]);
+    selDrawPreview = L.polyline(pts, { color: '#7b1fa2', weight: 1.5, dashArray: '5,4', opacity: 0.7, interactive: false }).addTo(map);
+  }
+
+  function refreshSelPolyLine() {
+    if (selDrawPoly) { map.removeLayer(selDrawPoly); selDrawPoly = null; }
+    if (selDrawPoints.length < 2) return;
+    const pts = selDrawPoints.length >= 3 ? [...selDrawPoints, selDrawPoints[0]] : selDrawPoints;
+    selDrawPoly = L.polyline(pts, { color: '#7b1fa2', weight: 2.5, opacity: 0.9, interactive: false }).addTo(map);
+  }
+
+  function onSelPolyFinish(e) {
+    e.originalEvent._drawSkip = true;
+    finishSelPoly();
+  }
+
+  async function finishSelPoly() {
+    if (selDrawPoints.length < 3) { toast('Se necesitan al menos 3 vértices para el polígono', 'err'); cancelSelPoly(); return; }
+    const ring = [...selDrawPoints];
+    cancelSelPoly();
+    toast('Buscando geometrías dentro del área…');
+    let added = 0;
+    try {
+      added = selSource === 'recinto'
+        ? await selectRecintosInPolygon(ring)
+        : selectShpFeaturesInPolygon(ring, selSource);
+    } catch (err) {
+      console.error('finishSelPoly error:', err);
+      toast('Error al buscar geometrías en el área', 'err');
+      return;
+    }
+    refreshCount();
+    toast(added
+      ? `${added} geometría${added > 1 ? 's' : ''} añadida${added > 1 ? 's' : ''} a la selección`
+      : 'No se encontraron geometrías dentro del área dibujada', added ? 'ok' : 'err');
+  }
+
+  // Consulta ArcGIS REST de recintos SIGPAC que intersectan el polígono dibujado
+  async function selectRecintosInPolygon(ringLatLngs) {
+    const closedRing = [...ringLatLngs, ringLatLngs[0]].map(ll => [ll.lng, ll.lat]);
+    const geometry = JSON.stringify({ rings: [closedRing], spatialReference: { wkid: 4326 } });
+    const params = new URLSearchParams({
+      geometry, geometryType: 'esriGeometryPolygon', spatialRel: 'esriSpatialRelIntersects',
+      inSR: '4326', outSR: '4326', outFields: '*', returnGeometry: 'true', f: 'geojson'
+    });
+    const res  = await fetch(`${ARCGIS_REST_URL}?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+
+    let added = 0;
+    (json.features || []).forEach(f => {
+      const p = f.properties || {};
+      const key = [p.PROVINCIA, p.MUNICIPIO, p.AGREGADO, p.ZONA, p.POLIGONO, p.PARCELA, p.RECINTO].join(':');
+      if (selFeatures.some(s => s.key === key)) return;
+      const hl = L.geoJSON(f, { style: HL_STYLE, interactive: false }).addTo(map);
+      selFeatures.push({ feature: f, hl, key });
+      added++;
+    });
+    window._selFeatures = selFeatures;
+    return added;
+  }
+
+  // Selección de features de una capa propia que intersectan el polígono dibujado
+  function selectShpFeaturesInPolygon(ringLatLngs, layerId) {
+    const layer = shpLayers.find(l => l.id === layerId);
+    if (!layer) { toast('Capa no encontrada', 'err'); return 0; }
+
+    const allFeats = [];
+    const collect = g => {
+      if (!g) return;
+      if (Array.isArray(g)) { g.forEach(collect); return; }
+      if (g.type === 'FeatureCollection') g.features?.forEach(collect);
+      else if (g.type === 'Feature') allFeats.push(g);
+    };
+    collect(layer.geojson);
+
+    const ring = [...ringLatLngs, ringLatLngs[0]].map(ll => [ll.lng, ll.lat]);
+    const polyGeom = { type: 'Polygon', coordinates: [ring] };
+
+    let added = 0;
+    allFeats.forEach(f => {
+      if (!f.geometry) return;
+      const key = layerId + ':' + (f.properties?.__gid || JSON.stringify(f.properties));
+      if (selFeatures.some(s => s.key === key)) return;
+      if (!featureIntersectsPolygon(f.geometry, polyGeom)) return;
+      const hl = L.geoJSON(f, {
+        style: HL_STYLE,
+        pointToLayer: (ff, ll) => L.circleMarker(ll, { radius: 10, ...HL_STYLE }),
+        interactive: false
+      }).addTo(map);
+      selFeatures.push({ feature: f, hl, key });
+      added++;
+    });
+    window._selFeatures = selFeatures;
+    return added;
+  }
+
+  // ── Utilidades geométricas para la intersección capa-propia vs polígono dibujado ──
+  function flattenCoords(geom) {
+    const pts = [];
+    const walk = c => { (typeof c[0] === 'number') ? pts.push(c) : c.forEach(walk); };
+    if (geom && geom.coordinates) walk(geom.coordinates);
+    return pts;
+  }
+
+  function pointInRing(pt, ring) {
+    const x = pt[0], y = pt[1];
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  // ¿La geometría de la feature intersecta (o está contenida en, o contiene a) el polígono dibujado?
+  function featureIntersectsPolygon(featGeom, polyGeom) {
+    const ring = polyGeom.coordinates[0];
+    const featPts = flattenCoords(featGeom);
+    if (featPts.some(p => pointInRing(p, ring))) return true;
+    // Contención inversa: el polígono dibujado cae dentro de una geometría más grande (p. ej. un recinto)
+    if (featGeom.type === 'Polygon' || featGeom.type === 'MultiPolygon') {
+      const sampleLatLng = { lat: ring[0][1], lng: ring[0][0] };
+      if (pointInGeoJSON(sampleLatLng, featGeom)) return true;
+    }
+    return false;
+  }
 
   // Sincronización con otras herramientas
   const _origStartDraw = window.startDraw;
