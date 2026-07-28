@@ -553,6 +553,10 @@ function addShpToUnifiedList(layer) {
       populateShpChildren(layer, childrenEl);
       childrenEl.dataset.populated = 'true';
     }
+    if (!isCollapsed) {
+      // Se acaba de colapsar el árbol: resetear el marcado de geometría de esta capa
+      if (treeMarked && childrenEl.contains(treeMarked.row)) clearTreeMark();
+    }
   });
 
   item.querySelector('.shp-edit-btn').addEventListener('click', e => {
@@ -568,6 +572,7 @@ function addShpToUnifiedList(layer) {
     } else {
       map.removeLayer(layer.polyLayer);
       map.removeLayer(layer.pinLayer);
+      if (treeMarked && childrenEl.contains(treeMarked.row)) clearTreeMark();
     }
     item.classList.toggle('hidden-photo', !e.target.checked);
     if (typeof syncLabelGroupVisibility === 'function') syncLabelGroupVisibility(layer.id);
@@ -647,8 +652,8 @@ function markTreeFeature(row, feat) {
   let hl = null;
   try {
     hl = L.geoJSON(feat, {
-      style: { color: '#ff9800', weight: 5, fillColor: '#ff9800', fillOpacity: 0.45, dashArray: null },
-      pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 13, color: '#ff9800', weight: 5, fillColor: '#ff9800', fillOpacity: 0.45 })
+      style: { color: '#ff9800', weight: 5, fill: false, fillOpacity: 0, dashArray: null },
+      pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 13, color: '#ff9800', weight: 5, fill: false, fillOpacity: 0 })
     }).addTo(map);
     hl.bringToFront?.();
   } catch(_) {}
