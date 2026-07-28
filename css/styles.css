@@ -335,9 +335,23 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px;
 .shp-feat-del { flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 10px; line-height: 1; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s, background .12s, color .12s; }
 .shp-feat-item:hover .shp-feat-del { opacity: 1; }
 .shp-feat-del:hover { background: var(--danger) !important; color: #fff !important; }
-.shp-tree-toggle { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--border); background: var(--s2); cursor: pointer; font-size: 8px; color: var(--muted); display: flex; align-items: center; justify-content: center; transition: transform .2s, background .15s; flex-shrink: 0; }
-.shp-tree-toggle:not(.collapsed) { transform: rotate(0deg); background: var(--blue-lt); color: var(--blue); border-color: var(--blue); }
+/* Botones homogéneos: expandir geometrías, editar y compartir/descargar capa */
+.shp-tree-toggle, .shp-edit-btn, .shp-icon-btn {
+  width: 22px; height: 22px; border-radius: 5px;
+  border: 1px solid var(--border2); background: var(--s2);
+  color: var(--muted); cursor: pointer; flex-shrink: 0; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.shp-tree-toggle { transition: background .15s, color .15s, border-color .15s, transform .2s; font-size: 8px; }
+.shp-tree-toggle:hover, .shp-edit-btn:hover, .shp-icon-btn:hover {
+  background: var(--blue-lt); color: var(--blue); border-color: rgba(47,111,222,.3);
+}
+.shp-tree-toggle:active, .shp-edit-btn:active, .shp-icon-btn:active {
+  background: var(--blue); color: #fff; border-color: var(--blue);
+}
 .shp-tree-toggle.collapsed { transform: rotate(-90deg); }
+.shp-tree-toggle:not(.collapsed) { background: var(--blue-lt); color: var(--blue); border-color: var(--blue); transform: rotate(0deg); }
 
 /* Botón seleccionar carpeta dentro del dropzone */
 
@@ -350,13 +364,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px;
 
 
 /* SHP item dentro del panel unificado */
-.shp-edit-btn {
-  width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border2);
-  background: var(--s2); cursor: pointer; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--muted); transition: all .15s;
-}
-.shp-edit-btn:hover { background: var(--blue-lt); color: var(--blue); border-color: rgba(47,111,222,.3); }
 .shp-color-dot { display: none; } /* kept for JS compat but hidden */
 .shp-color-input { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
 .shp-badge { font-family: 'DM Sans', sans-serif; font-size: 7.5px; color: var(--muted); background: var(--s3); border-radius: 4px; padding: 1px 4px; flex-shrink: 0; }
@@ -748,14 +755,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px;
 
 /* ── SHP DOWNLOAD BUTTONS ── */
 .shp-dl-wrap { position: relative; display: flex; }
-.shp-icon-btn {
-  width: 22px; height: 22px; border-radius: 5px;
-  border: 1px solid var(--border2); background: var(--s2);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--text2); transition: all .15s;
-  padding: 0;
-}
-.shp-icon-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
 .shp-icon-btn svg { width: 12px; height: 12px; }
 .shp-dl-menu {
   position: absolute; top: calc(100% + 4px); right: 0;
