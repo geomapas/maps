@@ -1084,6 +1084,17 @@
 .ml-popup-geomaps #ml-popup-inner {
   padding: 10px 12px 12px;
 }
+
+/* Marcado persistente de una geometría en el árbol "Geometrías" del panel lateral.
+   Se mantiene aunque el ratón salga del panel, hasta marcar otra geometría. */
+.shp-feat-item.shp-feat-marked {
+  background: rgba(255,152,0,0.22) !important;
+  box-shadow: inset 3px 0 0 0 #ff9800, inset 0 0 0 1px rgba(255,152,0,0.35);
+}
+.shp-feat-item.shp-feat-marked .shp-feat-name {
+  color: #b35c00 !important;
+  font-weight: 600;
+}
 </style>
 
 </body>
