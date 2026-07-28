@@ -572,7 +572,6 @@ function addShpToUnifiedList(layer) {
     } else {
       map.removeLayer(layer.polyLayer);
       map.removeLayer(layer.pinLayer);
-      if (treeMarked && childrenEl.contains(treeMarked.row)) clearTreeMark();
     }
     item.classList.toggle('hidden-photo', !e.target.checked);
     if (typeof syncLabelGroupVisibility === 'function') syncLabelGroupVisibility(layer.id);
