@@ -592,6 +592,8 @@ function addShpToUnifiedList(layer) {
   item.querySelector('.item-del').addEventListener('click', e => {
     e.stopPropagation();
     const doDelete = () => {
+      const childCont = document.querySelector(`.shp-children[data-layer-id="${layer.id}"]`);
+      if (treeMarked && childCont && childCont.contains(treeMarked.row)) clearTreeMark();
       map.removeLayer(layer.polyLayer);
       map.removeLayer(layer.pinLayer);
       if (layer.leafletLayer._onZoom) map.off('zoomend', layer.leafletLayer._onZoom);
@@ -628,8 +630,34 @@ function _featLabel(feature, idx) {
   return `${t === 'Point' ? 'Punto' : t === 'LineString' ? 'Línea' : 'Polígono'} ${idx + 1}`;
 }
 
+// ── Marcado persistente de una geometría en el árbol ──────────
+// Se mantiene hasta que se marque otra (no desaparece al sacar el ratón del panel).
+let treeMarked = null; // { row, hl }
+
+function clearTreeMark() {
+  if (!treeMarked) return;
+  if (treeMarked.hl) map.removeLayer(treeMarked.hl);
+  treeMarked.row.classList.remove('shp-feat-marked');
+  treeMarked = null;
+}
+
+function markTreeFeature(row, feat) {
+  clearTreeMark();
+  row.classList.add('shp-feat-marked');
+  let hl = null;
+  try {
+    hl = L.geoJSON(feat, {
+      style: { color: '#ff9800', weight: 5, fillColor: '#ff9800', fillOpacity: 0.45, dashArray: null },
+      pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 13, color: '#ff9800', weight: 5, fillColor: '#ff9800', fillOpacity: 0.45 })
+    }).addTo(map);
+    hl.bringToFront?.();
+  } catch(_) {}
+  treeMarked = { row, hl };
+}
+
 // ── Poblar árbol de geometrías ───────────────────────────────
 function populateShpChildren(layer, container) {
+  if (treeMarked && container.contains(treeMarked.row)) clearTreeMark();
   container.innerHTML = '';
   const allFeats = [];
   const collect = g => {
@@ -646,9 +674,10 @@ function populateShpChildren(layer, container) {
     row.className = 'shp-feat-item';
     row.innerHTML = `<span class="shp-feat-name" title="${esc(label)}">${esc(label)}</span><button class="shp-feat-del" title="Eliminar esta geometría">✕</button>`;
 
-    // Clic en nombre → zoom a la geometría
+    // Clic en nombre → marcar de forma persistente (fila + highlight en el mapa) y hacer zoom
     row.querySelector('.shp-feat-name').addEventListener('click', e => {
       e.stopPropagation();
+      markTreeFeature(row, feat);
       try {
         const b = L.geoJSON(feat).getBounds();
         if (b.isValid()) map.fitBounds(b, { padding: [60, 60], maxZoom: 18 });
@@ -659,6 +688,7 @@ function populateShpChildren(layer, container) {
     row.querySelector('.shp-feat-del').addEventListener('click', e => {
       e.stopPropagation();
       const doDelete = () => {
+        if (treeMarked && treeMarked.row === row) clearTreeMark();
         const fc = layer.geojson;
         if (fc?.features) { const i = fc.features.indexOf(feat); if (i !== -1) fc.features.splice(i, 1); }
         // Limpiar el checklist local de la geometría eliminada (ya no aplica a ninguna otra)
