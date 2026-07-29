@@ -437,6 +437,29 @@ function extractData(html) {
 // ═══════════════════════════════════════════════════════════════
 let searchMode = null;
 let searchHighlight = null;
+let recSearchTab = 'single'; // 'single' | 'batch'
+
+function switchRecTab(mode, isMob) {
+  recSearchTab = mode;
+  const prefix = isMob ? 'mob-' : '';
+  document.querySelectorAll(`#${prefix}rec-tab-single, #${prefix}rec-tab-batch`).forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === mode);
+  });
+  const singlePanel = document.getElementById(isMob ? 'mob-recinto-fields' : 'search-fields');
+  const batchPanel  = document.getElementById(`${prefix}rec-panel-batch`);
+  if (singlePanel) singlePanel.style.display = mode === 'single' ? '' : 'none';
+  if (batchPanel)  batchPanel.style.display  = mode === 'batch'  ? '' : 'none';
+  const btn = document.getElementById(isMob ? 'mob-recinto-search-exec' : 'search-btn-exec');
+  if (btn) btn.textContent = mode === 'batch' ? 'Buscar todos' : 'Buscar';
+  const label = document.getElementById(`${prefix}search-add-label-text`);
+  if (label) label.textContent = mode === 'batch' ? 'Añadir como capa nueva al mapa' : 'Añadir selección a capas';
+  const batchResults = document.getElementById(`${prefix}rec-batch-results`);
+  if (batchResults) batchResults.innerHTML = '';
+}
+document.getElementById('rec-tab-single')?.addEventListener('click', () => switchRecTab('single', false));
+document.getElementById('rec-tab-batch')?.addEventListener('click',  () => switchRecTab('batch',  false));
+document.getElementById('mob-rec-tab-single')?.addEventListener('click', () => switchRecTab('single', true));
+document.getElementById('mob-rec-tab-batch')?.addEventListener('click',  () => switchRecTab('batch',  true));
 
 const RECINTO_FIELDS = [
   { id:'s_prov',  label:'PROVINCIA',  required:true  },
@@ -469,6 +492,11 @@ function closeSearchPanel() {
   document.getElementById('search-panel').classList.remove('open');
   document.getElementById('search-recinto-btn').classList.remove('active-search');
   if (searchHighlight) { map.removeLayer(searchHighlight); searchHighlight = null; }
+  const batchInput   = document.getElementById('rec-batch-input');
+  const batchResults = document.getElementById('rec-batch-results');
+  if (batchInput)   batchInput.value   = '';
+  if (batchResults) batchResults.innerHTML = '';
+  switchRecTab('single', false);
 }
 
 document.getElementById('search-panel-close').addEventListener('click', closeSearchPanel);
@@ -476,7 +504,8 @@ document.getElementById('search-recinto-btn').addEventListener('click', () => op
 
 document.getElementById('search-btn-exec').addEventListener('click', async () => {
   if (!searchMode) return;
-  await execSearchRecinto();
+  if (recSearchTab === 'batch') await execSearchRecintoBatch('rec-batch-input', 'rec-batch-results', 'search-add-toggle');
+  else await execSearchRecinto();
 });
 
 // Los campos del panel de búsqueda se regeneran dinámicamente (innerHTML) cada vez
@@ -517,9 +546,83 @@ async function execSearchRecinto() {
   } catch(err) { toast('Error en la búsqueda: ' + err.message, 'err'); }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 7c. GEOLOCALIZACIÓN
-// ═══════════════════════════════════════════════════════════════
+async function execSearchRecintoBatch(inputId, resultsId, addToggleId) {
+  const textarea  = document.getElementById(inputId);
+  const resultsEl = document.getElementById(resultsId);
+  if (!textarea || !resultsEl) return;
+
+  const codes = parseSigpacCodes(textarea.value);
+  if (!codes.length) { toast('Introduce al menos un código de recinto', 'err'); return; }
+
+  resultsEl.innerHTML = `<div class="gan-progress"><div class="shp-spin"></div>Consultando 0 / ${codes.length}…</div>`;
+  const progressEl = resultsEl.firstElementChild;
+
+  const features = [];
+  const failed   = [];
+
+  for (let i = 0; i < codes.length; i++) {
+    const c = codes[i];
+    if (progressEl) progressEl.innerHTML = `<div class="shp-spin"></div>Consultando ${i+1} / ${codes.length} — ${c.code}`;
+    try {
+      const geom = await fetchSigpacGeometry(c);
+      if (geom) {
+        features.push({
+          type: 'Feature',
+          geometry: geom.geometry,
+          properties: {
+            CODIGO: c.code, PROVINCIA: c.prov, MUNICIPIO: c.mun, AGREGADO: c.ag,
+            ZONA: c.zona, POLIGONO: c.pol, PARCELA: c.par, RECINTO: c.rec, ...geom.extraProps
+          }
+        });
+      } else {
+        failed.push(c.code);
+      }
+    } catch(err) {
+      console.warn('Error recinto', c.code, err);
+      failed.push(c.code);
+    }
+  }
+
+  resultsEl.innerHTML = '';
+
+  if (!features.length) {
+    resultsEl.innerHTML = `<div class="gan-msg">No se encontró ningún recinto</div>`;
+    toast('No se pudo obtener geometría de ningún recinto', 'err');
+    return;
+  }
+
+  const summary = document.createElement('div');
+  summary.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:10px;color:var(--muted);margin-bottom:4px;';
+  summary.innerHTML = `<b style="color:var(--text)">${features.length}</b> recinto${features.length !== 1 ? 's' : ''} encontrado${features.length !== 1 ? 's' : ''}` +
+    (failed.length ? ` · <span style="color:var(--danger)">${failed.length} no encontrado${failed.length !== 1 ? 's' : ''}: ${failed.join(', ')}</span>` : '');
+  resultsEl.appendChild(summary);
+
+  features.forEach(f => {
+    const p = f.properties;
+    const div = document.createElement('div');
+    div.className = 'gan-result-item';
+    div.innerHTML = `<div class="gan-result-cod">${p.CODIGO}</div>`;
+    resultsEl.appendChild(div);
+  });
+
+  const geojson = { type: 'FeatureCollection', features };
+  if (searchHighlight) map.removeLayer(searchHighlight);
+  searchHighlight = L.geoJSON(geojson, {
+    style: { color: '#2f6fde', weight: 2.5, fillColor: '#2f6fde', fillOpacity: 0.22 }
+  }).addTo(map);
+  map.fitBounds(searchHighlight.getBounds(), { padding: [60, 60] });
+
+  const addToggle = document.getElementById(addToggleId);
+  if (addToggle?.checked) {
+    addShpLayer(geojson, `Recintos por lote (${features.length})`, null, true);
+  }
+
+  toast(failed.length
+    ? `${features.length} recinto${features.length !== 1 ? 's' : ''} encontrado${features.length !== 1 ? 's' : ''} (${failed.length} no encontrado${failed.length !== 1 ? 's' : ''})`
+    : `${features.length} recinto${features.length !== 1 ? 's' : ''} encontrado${features.length !== 1 ? 's' : ''}`, 'ok');
+}
+
+
 let geoActive    = false;
 let geoWatchId   = null;
 let geoMarker    = null;
