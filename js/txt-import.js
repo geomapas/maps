@@ -56,52 +56,67 @@ async function handleTxtFile(file) {
   const plabel = document.getElementById('sigpac-plabel');
   panel.style.display = '';
 
-  const features = [];
+  const CONCURRENCY = 5;
+  const features = new Array(codes.length);
   const failed   = [];
+  let completed  = 0;
+  let nextIdx    = 0;
 
-  for (let i = 0; i < codes.length; i++) {
-    const c = codes[i];
-    plabel.textContent = `Consultando ${i+1} / ${codes.length} — ${c.code}`;
-    pbar.style.width   = ((i + 1) / codes.length * 100) + '%';
+  function updateProgress() {
+    plabel.textContent = `Consultando ${completed} / ${codes.length}`;
+    pbar.style.width   = (completed / codes.length * 100) + '%';
+  }
+  updateProgress();
 
-    try {
-      const geom = await fetchSigpacGeometry(c);
-      if (geom) {
-        features.push({
-          type: 'Feature',
-          geometry: geom.geometry,
-          properties: {
-            CODIGO:    c.code,
-            PROVINCIA: c.prov, MUNICIPIO: c.mun,
-            AGREGADO:  c.ag,   ZONA:      c.zona,
-            POLIGONO:  c.pol,  PARCELA:   c.par, RECINTO: c.rec,
-            ...geom.extraProps
-          }
-        });
-      } else {
+  async function worker() {
+    while (nextIdx < codes.length) {
+      const idx = nextIdx++;
+      const c   = codes[idx];
+      try {
+        const geom = await fetchSigpacGeometry(c);
+        if (geom) {
+          features[idx] = {
+            type: 'Feature',
+            geometry: geom.geometry,
+            properties: {
+              CODIGO:    c.code,
+              PROVINCIA: c.prov, MUNICIPIO: c.mun,
+              AGREGADO:  c.ag,   ZONA:      c.zona,
+              POLIGONO:  c.pol,  PARCELA:   c.par, RECINTO: c.rec,
+              ...geom.extraProps
+            }
+          };
+        } else {
+          failed.push(c.code);
+        }
+      } catch(err) {
+        console.warn('Error recinto', c.code, err);
         failed.push(c.code);
       }
-    } catch(err) {
-      console.warn('Error recinto', c.code, err);
-      failed.push(c.code);
+      completed++;
+      updateProgress();
     }
   }
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, codes.length) }, worker));
+
+  const featuresOk = features.filter(Boolean);
 
   panel.style.display = 'none';
   pbar.style.width = '0%';
 
-  if (!features.length) {
+  if (!featuresOk.length) {
     toast('No se pudo obtener geometría de ningún recinto.', 'err');
     return;
   }
 
-  const geojson = { type: 'FeatureCollection', features };
+  const geojson = { type: 'FeatureCollection', features: featuresOk };
   addShpLayer(geojson, layerName, null, true);
 
   const msg = failed.length
-    ? `${features.length} recintos importados (${failed.length} no encontrados: ${failed.slice(0,3).join(', ')}${failed.length>3?'…':''})`
-    : `${features.length} recintos importados correctamente`;
-  toast(msg, features.length ? 'ok' : 'err');
+    ? `${featuresOk.length} recintos importados (${failed.length} no encontrados: ${failed.slice(0,3).join(', ')}${failed.length>3?'…':''})`
+    : `${featuresOk.length} recintos importados correctamente`;
+  toast(msg, featuresOk.length ? 'ok' : 'err');
 }
 
 async function fetchSigpacGeometry(c) {
