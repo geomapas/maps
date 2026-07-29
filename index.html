@@ -230,14 +230,32 @@
         <div class="search-card-title" id="search-panel-title">Buscar recinto</div>
         <button class="search-close" id="search-panel-close">✕</button>
       </div>
+
+      <!-- Tabs: individual / lote -->
+      <div style="display:flex;border-bottom:1px solid var(--border);padding:0 12px;">
+        <button class="gan-tab active" id="rec-tab-single" data-tab="single">Individual</button>
+        <button class="gan-tab" id="rec-tab-batch" data-tab="batch">Por lote</button>
+      </div>
+
       <div class="search-fields" id="search-fields"></div>
+
+      <!-- Tab por lote -->
+      <div id="rec-panel-batch" style="display:none;padding:10px 12px;flex-direction:column;gap:10px;overflow-y:auto;flex:1;">
+        <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text2);line-height:1.5;">
+          Introduce uno o varios códigos de recinto SIGPAC, uno por línea.<br>
+          <span style="color:var(--muted);font-size:10px;">Formato: <b>PROVINCIA-MUNICIPIO-AGREGADO-ZONA-POLÍGONO-PARCELA-RECINTO</b></span>
+        </div>
+        <textarea id="rec-batch-input" style="width:100%;box-sizing:border-box;height:110px;font-family:'DM Sans',sans-serif;font-size:11px;border:1.5px solid var(--border);border-radius:8px;padding:8px;resize:vertical;outline:none;line-height:1.6;" placeholder="16-123-0-0-5-23-1&#10;16/123/0/0/5/24/2"></textarea>
+        <div id="rec-batch-results" class="gan-results"></div>
+      </div>
+
       <div class="search-footer">
         <div class="search-add-row">
           <div class="toggle-wrap" style="flex-shrink:0;">
             <input type="checkbox" id="search-add-toggle">
             <label for="search-add-toggle"></label>
           </div>
-          <div class="search-add-label">Añadir selección a capas</div>
+          <div class="search-add-label" id="search-add-label-text">Añadir selección a capas</div>
         </div>
         <button class="search-btn" id="search-btn-exec">Buscar</button>
       </div>
@@ -631,14 +649,32 @@
     <div class="mob-sheet-title">Buscar recinto</div>
     <button class="mob-sheet-close" id="mob-search-recinto-close">✕</button>
   </div>
+
+  <!-- Tabs: individual / lote -->
+  <div style="display:flex;border-bottom:1px solid var(--border);padding:0 14px;">
+    <button class="gan-tab active" id="mob-rec-tab-single" data-tab="single">Individual</button>
+    <button class="gan-tab" id="mob-rec-tab-batch" data-tab="batch">Por lote</button>
+  </div>
+
   <div class="mob-sheet-body" id="mob-recinto-fields"></div>
+
+  <!-- Tab por lote -->
+  <div id="mob-rec-panel-batch" style="display:none;padding:0 14px;">
+    <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:8px;">
+      Introduce uno o varios códigos de recinto SIGPAC, uno por línea.<br>
+      <span style="color:var(--muted);font-size:10px;">Formato: <b>PROVINCIA-MUNICIPIO-AGREGADO-ZONA-POLÍGONO-PARCELA-RECINTO</b></span>
+    </div>
+    <textarea id="mob-rec-batch-input" style="width:100%;box-sizing:border-box;height:100px;font-family:'DM Sans',sans-serif;font-size:11px;border:1.5px solid var(--border);border-radius:8px;padding:8px;resize:vertical;outline:none;line-height:1.6;" placeholder="16-123-0-0-5-23-1"></textarea>
+    <div id="mob-rec-batch-results" class="gan-results" style="max-height:120px;overflow-y:auto;margin-top:6px;"></div>
+  </div>
+
   <div class="mob-sheet-footer">
     <div class="search-add-row" style="margin-bottom:6px;">
       <div class="toggle-wrap" style="flex-shrink:0;">
         <input type="checkbox" id="mob-search-add-toggle">
         <label for="mob-search-add-toggle"></label>
       </div>
-      <div class="search-add-label">Añadir selección a capas</div>
+      <div class="search-add-label" id="mob-search-add-label-text">Añadir selección a capas</div>
     </div>
     <button class="search-btn" id="mob-recinto-search-exec">Buscar</button>
   </div>
