@@ -85,7 +85,6 @@ async function handleTxtFile(file) {
       console.warn('Error recinto', c.code, err);
       failed.push(c.code);
     }
-    await new Promise(r => setTimeout(r, 150));
   }
 
   panel.style.display = 'none';
