@@ -557,35 +557,50 @@ async function execSearchRecintoBatch(inputId, resultsId, addToggleId) {
   resultsEl.innerHTML = `<div class="gan-progress"><div class="shp-spin"></div>Consultando 0 / ${codes.length}…</div>`;
   const progressEl = resultsEl.firstElementChild;
 
-  const features = [];
+  const CONCURRENCY = 5;
+  const features = new Array(codes.length);
   const failed   = [];
+  let completed  = 0;
+  let nextIdx    = 0;
 
-  for (let i = 0; i < codes.length; i++) {
-    const c = codes[i];
-    if (progressEl) progressEl.innerHTML = `<div class="shp-spin"></div>Consultando ${i+1} / ${codes.length} — ${c.code}`;
-    try {
-      const geom = await fetchSigpacGeometry(c);
-      if (geom) {
-        features.push({
-          type: 'Feature',
-          geometry: geom.geometry,
-          properties: {
-            CODIGO: c.code, PROVINCIA: c.prov, MUNICIPIO: c.mun, AGREGADO: c.ag,
-            ZONA: c.zona, POLIGONO: c.pol, PARCELA: c.par, RECINTO: c.rec, ...geom.extraProps
-          }
-        });
-      } else {
+  function updateProgress() {
+    if (progressEl) progressEl.innerHTML = `<div class="shp-spin"></div>Consultando ${completed} / ${codes.length}`;
+  }
+
+  async function worker() {
+    while (nextIdx < codes.length) {
+      const idx = nextIdx++;
+      const c   = codes[idx];
+      try {
+        const geom = await fetchSigpacGeometry(c);
+        if (geom) {
+          features[idx] = {
+            type: 'Feature',
+            geometry: geom.geometry,
+            properties: {
+              CODIGO: c.code, PROVINCIA: c.prov, MUNICIPIO: c.mun, AGREGADO: c.ag,
+              ZONA: c.zona, POLIGONO: c.pol, PARCELA: c.par, RECINTO: c.rec, ...geom.extraProps
+            }
+          };
+        } else {
+          failed.push(c.code);
+        }
+      } catch(err) {
+        console.warn('Error recinto', c.code, err);
         failed.push(c.code);
       }
-    } catch(err) {
-      console.warn('Error recinto', c.code, err);
-      failed.push(c.code);
+      completed++;
+      updateProgress();
     }
   }
 
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, codes.length) }, worker));
+
+  const featuresOk = features.filter(Boolean);
+
   resultsEl.innerHTML = '';
 
-  if (!features.length) {
+  if (!featuresOk.length) {
     resultsEl.innerHTML = `<div class="gan-msg">No se encontró ningún recinto</div>`;
     toast('No se pudo obtener geometría de ningún recinto', 'err');
     return;
@@ -593,11 +608,11 @@ async function execSearchRecintoBatch(inputId, resultsId, addToggleId) {
 
   const summary = document.createElement('div');
   summary.style.cssText = 'font-family:"DM Sans",sans-serif;font-size:10px;color:var(--muted);margin-bottom:4px;';
-  summary.innerHTML = `<b style="color:var(--text)">${features.length}</b> recinto${features.length !== 1 ? 's' : ''} encontrado${features.length !== 1 ? 's' : ''}` +
+  summary.innerHTML = `<b style="color:var(--text)">${featuresOk.length}</b> recinto${featuresOk.length !== 1 ? 's' : ''} encontrado${featuresOk.length !== 1 ? 's' : ''}` +
     (failed.length ? ` · <span style="color:var(--danger)">${failed.length} no encontrado${failed.length !== 1 ? 's' : ''}: ${failed.join(', ')}</span>` : '');
   resultsEl.appendChild(summary);
 
-  features.forEach(f => {
+  featuresOk.forEach(f => {
     const p = f.properties;
     const div = document.createElement('div');
     div.className = 'gan-result-item';
@@ -605,7 +620,7 @@ async function execSearchRecintoBatch(inputId, resultsId, addToggleId) {
     resultsEl.appendChild(div);
   });
 
-  const geojson = { type: 'FeatureCollection', features };
+  const geojson = { type: 'FeatureCollection', features: featuresOk };
   if (searchHighlight) map.removeLayer(searchHighlight);
   searchHighlight = L.geoJSON(geojson, {
     style: { color: '#2f6fde', weight: 2.5, fillColor: '#2f6fde', fillOpacity: 0.22 }
@@ -614,12 +629,12 @@ async function execSearchRecintoBatch(inputId, resultsId, addToggleId) {
 
   const addToggle = document.getElementById(addToggleId);
   if (addToggle?.checked) {
-    addShpLayer(geojson, `Recintos por lote (${features.length})`, null, true);
+    addShpLayer(geojson, `Recintos por lote (${featuresOk.length})`, null, true);
   }
 
   toast(failed.length
-    ? `${features.length} recinto${features.length !== 1 ? 's' : ''} encontrado${features.length !== 1 ? 's' : ''} (${failed.length} no encontrado${failed.length !== 1 ? 's' : ''})`
-    : `${features.length} recinto${features.length !== 1 ? 's' : ''} encontrado${features.length !== 1 ? 's' : ''}`, 'ok');
+    ? `${featuresOk.length} recinto${featuresOk.length !== 1 ? 's' : ''} encontrado${featuresOk.length !== 1 ? 's' : ''} (${failed.length} no encontrado${failed.length !== 1 ? 's' : ''})`
+    : `${featuresOk.length} recinto${featuresOk.length !== 1 ? 's' : ''} encontrado${featuresOk.length !== 1 ? 's' : ''}`, 'ok');
 }
 
 
