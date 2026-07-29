@@ -485,6 +485,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function closeMobSheet(panel) {
     panel?.classList.remove('open');
+    if (panel === mobRecintoPanel) {
+      const mobBatchInput   = document.getElementById('mob-rec-batch-input');
+      const mobBatchResults = document.getElementById('mob-rec-batch-results');
+      if (mobBatchInput)   mobBatchInput.value   = '';
+      if (mobBatchResults) mobBatchResults.innerHTML = '';
+      switchRecTab('single', true);
+    }
     if (panel === mobGanPanel) {
       setGanResults([]);
       const mobGanResultsEl = document.getElementById('mob-gan-results');
@@ -584,6 +591,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // ── Botón búsqueda recintos móvil ──────────────────────────
   document.getElementById('mob-recinto-search-exec')?.addEventListener('click', async () => {
+    if (recSearchTab === 'batch') {
+      // Sincronizar toggle antes de ejecutar
+      const desktop = document.getElementById('search-add-toggle');
+      const mob = document.getElementById('mob-search-add-toggle');
+      if (desktop && mob) desktop.checked = mob.checked;
+      await execSearchRecintoBatch('mob-rec-batch-input', 'mob-rec-batch-results', 'mob-search-add-toggle');
+      return;
+    }
     // Copiar valores de los campos móviles a los campos desktop antes de ejecutar
     RECINTO_FIELDS.forEach(f => {
       const mobVal = document.getElementById('mob_' + f.id)?.value.trim();
