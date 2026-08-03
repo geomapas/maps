@@ -27,6 +27,8 @@
   const deleteBtn = document.getElementById('sel-tool-delete');
   const polyBtn   = document.getElementById('sel-tool-poly');
   const drawHintEl = document.getElementById('draw-hint');
+  const moveRow    = document.getElementById('sel-move-row');
+  const moveToggle = document.getElementById('sel-move-toggle');
 
   // ── Estado del modo "seleccionar dibujando un polígono" ──
   let selPolyMode    = false;
@@ -44,6 +46,7 @@
   function updateDeleteBtnVisibility() {
     const isOwnLayer = selSource !== 'recinto' && selSource !== 'cultivo';
     deleteBtn.style.display = isOwnLayer ? '' : 'none';
+    if (moveRow) moveRow.style.display = isOwnLayer ? '' : 'none';
   }
   function updatePolyBtnVisibility() {
     const disabled = selSource === 'cultivo';
@@ -325,17 +328,36 @@
     const fc = { type: 'FeatureCollection', features: selFeatures.map(s => s.feature) };
     const srcLabel = layerSel.options[layerSel.selectedIndex]?.text || 'Selección';
     const name = `Selección ${srcLabel} (${selFeatures.length})`;
-    showSaveLayerModal(fc, name, () => closeSelBar());
+
+    // Modo "Mover": si está activo y la fuente es una capa propia, tras guardar/añadir
+    // la selección se eliminan esas mismas geometrías de la capa origen.
+    const isOwnLayer   = selSource !== 'recinto' && selSource !== 'cultivo';
+    const shouldMove    = isOwnLayer && !!moveToggle?.checked;
+    const sourceLayerId = selSource;
+    const featsToMove    = shouldMove ? selFeatures.slice() : null;
+
+    showSaveLayerModal(fc, name, () => {
+      if (shouldMove && featsToMove && featsToMove.length) {
+        const removed = removeFeaturesFromLayer(sourceLayerId, featsToMove);
+        if (removed > 0) {
+          const srcLayer = shpLayers.find(l => l.id === sourceLayerId);
+          toast(`${removed} geometría${removed > 1 ? 's' : ''} movida${removed > 1 ? 's' : ''} desde "${srcLayer ? srcLayer.name : srcLabel}"`, 'ok');
+        }
+      }
+      closeSelBar();
+    });
   });
 
-  deleteBtn.addEventListener('click', () => {
-    if (selFeatures.length === 0) { toast('No hay geometrías seleccionadas', 'err'); return; }
-    const layer = shpLayers.find(l => l.id === selSource);
-    if (!layer) { toast('Capa no encontrada', 'err'); return; }
+  // Elimina del GeoJSON de la capa `layerId` las features presentes en `feats` (array de
+  // objetos { feature, ... } como los que usa selFeatures) y reconstruye la capa en el mapa.
+  // Devuelve el número de geometrías eliminadas. Usada tanto por el botón "Borrar" como
+  // por el flujo de "Mover" al guardar/añadir la selección a otra capa.
+  function removeFeaturesFromLayer(layerId, feats) {
+    const layer = shpLayers.find(l => l.id === layerId);
+    if (!layer) return 0;
 
-    // Eliminar cada feature seleccionada del GeoJSON de la capa
     let removed = 0;
-    selFeatures.forEach(sel => {
+    feats.forEach(sel => {
       const fc = layer.geojson;
       if (!fc || !fc.features) return;
       const idx = fc.features.indexOf(sel.feature);
@@ -347,11 +369,7 @@
         if (delGid) { try { localStorage.removeItem(`cl_${layer.id}_${delGid}`); } catch(_) {} }
       }
     });
-    if (removed === 0) { toast('No se pudo eliminar la geometría', 'err'); return; }
-
-    // Limpiar highlights de la selección actual
-    selFeatures.forEach(s => { if (s.hl) map.removeLayer(s.hl); });
-    selFeatures = []; window._selFeatures = selFeatures;
+    if (removed === 0) return 0;
 
     // Preservar color y etiquetas antes de reconstruir la capa
     const savedColor = layer.color;
@@ -388,6 +406,21 @@
     if (typeof isFirebaseActive === 'function' && isFirebaseActive() && typeof saveShpToCloud === 'function') {
       saveShpToCloud(shpLayers.find(l => l.id === layer.id));
     }
+
+    return removed;
+  }
+
+  deleteBtn.addEventListener('click', () => {
+    if (selFeatures.length === 0) { toast('No hay geometrías seleccionadas', 'err'); return; }
+    const layer = shpLayers.find(l => l.id === selSource);
+    if (!layer) { toast('Capa no encontrada', 'err'); return; }
+
+    const removed = removeFeaturesFromLayer(selSource, selFeatures);
+    if (removed === 0) { toast('No se pudo eliminar la geometría', 'err'); return; }
+
+    // Limpiar highlights de la selección actual
+    selFeatures.forEach(s => { if (s.hl) map.removeLayer(s.hl); });
+    selFeatures = []; window._selFeatures = selFeatures;
 
     refreshCount();
     toast(`${removed} geometría${removed > 1 ? 's' : ''} eliminada${removed > 1 ? 's' : ''} de "${layer.name}"`, 'ok');
