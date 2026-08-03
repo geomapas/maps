@@ -1697,6 +1697,13 @@ body:has(#mob-draw-bar.open) #measure-popup { display: none !important; }
   background: var(--surface); color: var(--text); cursor: pointer;
 }
 
+/* Label del toggle "Mover" en el panel de selección */
+.sel-move-label {
+  font-family: 'DM Sans', sans-serif; font-size: 10.5px; font-weight: 600;
+  color: var(--text2); cursor: pointer; user-select: none;
+}
+.sel-move-row { padding-top: 2px; }
+
 /* Label uppercase */
 .tool-label {
   font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 700;
