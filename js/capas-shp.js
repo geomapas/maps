@@ -363,8 +363,10 @@ function buildPopupHtml(properties, layerId) {
 }
 
 // ── Agregar Capa Vectorial (Modificada con integración de base de datos) ──
-function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, shouldZoom = true, forceColor = null) {
+// initialPinMode: 'auto' (por defecto, alterna vectorial/pins según zoom) | 'vector' (siempre vectorial, sin pins)
+function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, shouldZoom = true, forceColor = null, initialPinMode = 'auto') {
   const id    = cloudId || Math.random().toString(36).slice(2, 11);
+  const pinMode = initialPinMode === 'vector' ? 'vector' : 'auto';
   
   if (shpLayers.some(l => l.id === id)) return;
 
@@ -435,12 +437,17 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
   });
 
   const zoom = map.getZoom();
-  const showPins = zoom < SHP_ZOOM_THRESHOLD;
+  const showPins = pinMode !== 'vector' && zoom < SHP_ZOOM_THRESHOLD;
   if (showPins) pinLayer.addTo(map);
   else polyLayer.addTo(map);
 
   function onZoom() {
     if (!obj.visible) return;
+    if (obj.pinMode === 'vector') {
+      // Vectorial fijo: nunca mostrar pins, sea cual sea el zoom
+      if (map.hasLayer(pinLayer)) { map.removeLayer(pinLayer); polyLayer.addTo(map); }
+      return;
+    }
     const z = map.getZoom();
     if (z < SHP_ZOOM_THRESHOLD) {
       if (map.hasLayer(polyLayer)) { map.removeLayer(polyLayer); pinLayer.addTo(map); }
@@ -454,7 +461,7 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
     _onZoom: onZoom,
     addTo(m) {
       const z = m.getZoom();
-      if (z < SHP_ZOOM_THRESHOLD) pinLayer.addTo(m); else polyLayer.addTo(m);
+      if (obj.pinMode !== 'vector' && z < SHP_ZOOM_THRESHOLD) pinLayer.addTo(m); else polyLayer.addTo(m);
     },
     remove() { map.removeLayer(polyLayer); map.removeLayer(pinLayer); },
     getBounds() { return polyLayer.getBounds(); },
@@ -492,7 +499,7 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
     }
   };
 
-  const obj = { id, name, geojson, leafletLayer, polyLayer, pinLayer, color, visible: true, featureCount };
+  const obj = { id, name, geojson, leafletLayer, polyLayer, pinLayer, color, visible: true, featureCount, pinMode };
   shpLayers.push(obj);
 
   if (shouldZoom) {
@@ -510,6 +517,28 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
     saveShpToCloud(obj);
   }
 }
+
+// Cambia el modo de visualización de una capa ya cargada: 'vector' (siempre vectorial, sin pins)
+// o 'auto' (comportamiento de siempre: pins al alejar, vectorial al acercar). Actualiza el mapa
+// al instante si la capa está visible.
+function setLayerPinMode(layer, mode) {
+  const newMode = mode === 'vector' ? 'vector' : 'auto';
+  if (layer.pinMode === newMode) return;
+  layer.pinMode = newMode;
+  if (!layer.visible) return;
+
+  if (newMode === 'vector') {
+    if (map.hasLayer(layer.pinLayer)) { map.removeLayer(layer.pinLayer); layer.polyLayer.addTo(map); }
+  } else {
+    const z = map.getZoom();
+    if (z < SHP_ZOOM_THRESHOLD) {
+      if (map.hasLayer(layer.polyLayer)) { map.removeLayer(layer.polyLayer); layer.pinLayer.addTo(map); }
+    } else {
+      if (map.hasLayer(layer.pinLayer)) { map.removeLayer(layer.pinLayer); layer.polyLayer.addTo(map); }
+    }
+  }
+}
+window.setLayerPinMode = setLayerPinMode;
 
 function addShpToUnifiedList(layer) {
   const list = document.getElementById('unifiedList');
@@ -707,6 +736,7 @@ function populateShpChildren(layer, container) {
         const delGid = feat.properties?.__gid;
         if (delGid) { try { localStorage.removeItem(`cl_${layer.id}_${delGid}`); } catch(_) {} }
         const savedColor  = layer.color;
+        const savedPinMode = layer.pinMode;
         const savedLabels = typeof layerLabels !== 'undefined' && layerLabels[layer.id]
           ? { fields:[...layerLabels[layer.id].fields], visible:layerLabels[layer.id].visible,
               color:layerLabels[layer.id].color, size:layerLabels[layer.id].size }
@@ -720,7 +750,7 @@ function populateShpChildren(layer, container) {
         document.querySelector(`.list-item[data-id="${layer.id}"]`)?.remove();
         document.querySelector(`.shp-children[data-layer-id="${layer.id}"]`)?.remove();
         shpLayers.splice(shpLayers.findIndex(l => l.id === layer.id), 1);
-        addShpLayer({...layer.geojson}, layer.name, layer.id, true, false, savedColor);
+        addShpLayer({...layer.geojson}, layer.name, layer.id, true, false, savedColor, savedPinMode);
         const rebuiltLayer = shpLayers.find(l => l.id === layer.id);
         if (rebuiltLayer) {
           rebuiltLayer._isCollab = savedCollab.isCollab;
