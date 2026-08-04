@@ -945,6 +945,18 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
+    // ── Modo de visualización (vectorial fija vs. automático según zoom) ──
+    {
+      const pinModeToggle = document.getElementById('pinmode-vector-toggle');
+      const newPinMode = pinModeToggle?.checked ? 'vector' : 'auto';
+      if (newPinMode !== _editLayer.pinMode && typeof setLayerPinMode === 'function') {
+        setLayerPinMode(_editLayer, newPinMode);
+        if (typeof isFirebaseActive === 'function' && isFirebaseActive() && typeof updateShpPinModeInCloud === 'function') {
+          updateShpPinModeInCloud(_editLayer.id, newPinMode);
+        }
+      }
+    }
+
     // ── Guardar etiquetas ────────────────────────────────────
     if (typeof layerLabels !== 'undefined') {
       const newFields  = [0,1,2].map(i => document.getElementById('lbl-field-' + i)?.value || '');
@@ -1054,6 +1066,8 @@ document.addEventListener('DOMContentLoaded', function() {
     nameInput.value = layer.name;
     colorInput.value = layer.color;
     colorPreview.style.background = layer.color;
+    const pinModeToggle = document.getElementById('pinmode-vector-toggle');
+    if (pinModeToggle) pinModeToggle.checked = layer.pinMode === 'vector';
     populateLblSelects(layer);
     const cf = getCustomFields(layer.id);
     for (let i = 0; i < 5; i++) {
