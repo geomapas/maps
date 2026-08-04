@@ -229,6 +229,7 @@
 
     // Preservar configuración de etiquetas y color antes de recrear la capa
     const _savedColor = layer.color;
+    const _savedPinMode = layer.pinMode;
     const _savedLabels = typeof layerLabels !== 'undefined' && layerLabels[layer.id]
       ? { fields: [...layerLabels[layer.id].fields], visible: layerLabels[layer.id].visible }
       : null;
@@ -236,7 +237,7 @@
     const _savedCollab = { isCollab: layer._isCollab, ownerUid: layer._ownerUid, hasCollaborators: layer._hasCollaborators };
     if (typeof removeLayerLabels === 'function') removeLayerLabels(layer.id);
     // Recrear la capa con los datos combinados, manteniendo el mismo id, nombre y color
-    addShpLayer(mergedGeojson, layer.name, layer.id, true, false, _savedColor);
+    addShpLayer(mergedGeojson, layer.name, layer.id, true, false, _savedColor, _savedPinMode);
 
     const _mergedLayer = shpLayers.find(l => l.id === layer.id);
     if (_mergedLayer) {
