@@ -108,6 +108,7 @@ async function saveShpToCloud(layer) {
       name: layer.name,
       geojson: serializedGeoJson,
       color: layer.color,
+      pinMode: layer.pinMode || 'auto',
       featureCount: layer.featureCount,
       ...(lblCfg ? { labels: lblCfg } : {}),
       customFields: cfCfg,
@@ -137,6 +138,16 @@ async function updateShpColorInCloud(layerId, color) {
   const docRef = db.doc(`artifacts/${appId}/users/${user.uid}/capas_vectoriales/${layerId}`);
   try {
     await docRef.update({ color });
+  } catch (_) {}
+}
+
+async function updateShpPinModeInCloud(layerId, pinMode) {
+  if (!isFirebaseActive()) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  const docRef = db.doc(`artifacts/${appId}/users/${user.uid}/capas_vectoriales/${layerId}`);
+  try {
+    await docRef.update({ pinMode });
   } catch (_) {}
 }
 
@@ -350,7 +361,7 @@ function setupCollabLayersListener(user) {
               // Añadir la capa si no existe aún
               try {
                 const geojson = JSON.parse(data.geojson);
-                addShpLayer(geojson, data.name, layerId, false, false, data.color || null);
+                addShpLayer(geojson, data.name, layerId, false, false, data.color || null, data.pinMode || 'auto');
                 const layer = shpLayers.find(l => l.id === layerId);
                 if (layer) {
                   layer._isCollab = true;
@@ -376,7 +387,7 @@ function setupCollabLayersListener(user) {
                 if (idx !== -1) shpLayers.splice(idx, 1);
                 document.querySelector(`.list-item[data-id="${layerId}"]`)?.remove();
 
-                addShpLayer(geojson, data.name, layerId, false, false, data.color || null);
+                addShpLayer(geojson, data.name, layerId, false, false, data.color || null, data.pinMode || 'auto');
                 const refreshed = shpLayers.find(l => l.id === layerId);
                 if (refreshed) {
                   refreshed._isCollab = true;
