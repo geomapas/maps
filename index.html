@@ -1015,6 +1015,17 @@
             </div>
           </div>
         </div>
+        <!-- Modo de visualización: vectorial siempre o automático según zoom (pins al alejar) -->
+        <div class="layer-edit-field" id="pinmode-section">
+          <div class="lbl-toggle-row">
+            <div class="layer-edit-label">Vista vectorial fija</div>
+            <div class="toggle-wrap" style="flex-shrink:0;">
+              <input type="checkbox" id="pinmode-vector-toggle">
+              <label for="pinmode-vector-toggle"></label>
+            </div>
+          </div>
+          <div class="cf-hint">Si está activo, esta capa se muestra siempre como polígonos/líneas, sin pins al alejar el zoom (recomendado en capas con muchos recintos, mejora el rendimiento). Si está desactivado, se comporta como hasta ahora: pins al alejar, vectorial al acercar.</div>
+        </div>
         <!-- Etiquetas -->
         <div class="layer-edit-field lbl-section" id="lbl-section">
           <div class="lbl-toggle-row">
