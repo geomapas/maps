@@ -63,6 +63,13 @@ async function processGenericShpFiles(files) {
 const SHP_ZOOM_THRESHOLD = 14;
 const VISITED_COLOR = '#2e7d32'; // Verde para geometrías marcadas como visitadas
 
+// Renderer Canvas compartido para las capas vectoriales (polígonos/líneas).
+// Con capas de miles de recintos, dibujar cada geometría como un <path> SVG satura el DOM
+// y ralentiza mucho el pan/zoom. Con un único <canvas> compartido el pintado es muchísimo
+// más rápido, y no afecta a los puntos (siguen siendo L.marker con icono, no se ven afectados
+// por el renderer) ni a la interactividad (clic/popup siguen funcionando igual).
+const shpCanvasRenderer = L.canvas({ padding: 0.5 });
+
 // Configuración de campos personalizados por capa (hasta 5 etiquetas), persistida en localStorage/Firestore
 const layerCustomFields = {};
 function getCustomFields(layerId) {
@@ -259,7 +266,7 @@ function updateFeatureVisitedStyle(layerId, gid, visitado) {
       layer.pinLayer.removeLayer(pinMarker);
       const marker = L.marker(c, { icon: buildPinIcon(newColor) });
       marker._gid = gid;
-      marker.bindPopup(buildPopupHtml(f.properties, layerId)).addTo(layer.pinLayer);
+      marker.bindPopup(() => buildPopupHtml(f.properties, layerId)).addTo(layer.pinLayer);
     }
   }
 }
@@ -397,6 +404,7 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
 
 
   const polyLayer = L.geoJSON(geojson, {
+    renderer: shpCanvasRenderer,
     style: f => {
       const clKey = `cl_${id}_${f.properties?.__gid}`;
       const saved = (() => { try { return JSON.parse(localStorage.getItem(clKey) || 'null'); } catch(e) { return null; } })();
@@ -423,7 +431,7 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
     const marker = L.marker(c, { icon: buildPinIcon(pinColor) });
     marker._gid = gid;
     marker.feature = f; // necesario para que applyLayerFilter pueda leer sus propiedades
-    marker.bindPopup(buildPopupHtml(f.properties, id)).addTo(pinLayer);
+    marker.bindPopup(() => buildPopupHtml(f.properties, id)).addTo(pinLayer);
   });
 
   const zoom = map.getZoom();
