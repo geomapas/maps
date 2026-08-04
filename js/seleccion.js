@@ -373,6 +373,7 @@
 
     // Preservar color y etiquetas antes de reconstruir la capa
     const savedColor = layer.color;
+    const savedPinMode = layer.pinMode;
     const savedLabels = typeof layerLabels !== 'undefined' && layerLabels[layer.id]
       ? { fields: [...layerLabels[layer.id].fields], visible: layerLabels[layer.id].visible, color: layerLabels[layer.id].color, size: layerLabels[layer.id].size }
       : null;
@@ -389,7 +390,7 @@
     shpLayers.splice(shpLayers.findIndex(l => l.id === layer.id), 1);
 
     const updatedGeojson = { ...layer.geojson };
-    addShpLayer(updatedGeojson, layer.name, layer.id, true, false, savedColor);
+    addShpLayer(updatedGeojson, layer.name, layer.id, true, false, savedColor, savedPinMode);
 
     const rebuiltLayer = shpLayers.find(l => l.id === layer.id);
     if (rebuiltLayer) {
