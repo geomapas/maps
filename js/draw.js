@@ -41,6 +41,14 @@ function startDraw() {
     : 'Clic para añadir puntos · Pulsa Guardar para finalizar';
   drawHint.classList.add('show');
   map.getContainer().style.cursor = 'crosshair';
+  // Desvincular temporalmente los popups de las geometrías vectoriales visibles para poder
+  // dibujar/marcar vértices dentro de ellas sin que se interponga su bocadillo de información
+  // (Leaflet detiene la propagación del clic al mapa cuando hay un popup vinculado a la capa
+  // sobre la que se hace clic). Se restauran al terminar el dibujo, en stopDraw(). Mismo
+  // patrón que usa la herramienta de selección por geometría.
+  if (typeof shpLayers !== 'undefined') {
+    shpLayers.forEach(l => l.polyLayer.eachLayer(sub => { if (sub.getPopup()) sub.unbindPopup(); }));
+  }
   map.on('click',     onDrawClick);
   map.on('mousemove', onDrawMove);
   if (!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
@@ -56,6 +64,15 @@ function stopDraw(save) {
   map.off('click',     onDrawClick);
   map.off('mousemove', onDrawMove);
   map.off('dblclick',  onDrawFinish);
+  // Restaurar los popups de las geometrías vectoriales desvinculados en startDraw()
+  if (typeof shpLayers !== 'undefined') {
+    shpLayers.forEach(l => l.polyLayer.eachLayer(sub => {
+      if (sub.feature && !sub.getPopup()) {
+        const _l = shpLayers.find(ll => ll.polyLayer.hasLayer(sub) || ll.pinLayer?.hasLayer(sub));
+        sub.bindPopup(() => buildPopupHtml(sub.feature.properties, _l?.id));
+      }
+    }));
+  }
   if (drawPoly)    { map.removeLayer(drawPoly);    drawPoly    = null; }
   if (drawPreview) { map.removeLayer(drawPreview); drawPreview = null; }
   drawMarkers.forEach(m => map.removeLayer(m));
