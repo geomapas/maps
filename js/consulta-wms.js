@@ -453,6 +453,12 @@ function switchRecTab(mode, isMob) {
   if (btn) btn.textContent = mode === 'batch' ? 'Buscar todos' : 'Buscar';
   const label = document.getElementById(`${prefix}search-add-label-text`);
   if (label) label.textContent = mode === 'batch' ? 'Añadir como capa nueva al mapa' : 'Añadir selección a capas';
+  // En la búsqueda por lotes, "Añadir como capa nueva al mapa" viene marcada por defecto
+  // (en la individual se deja tal cual esté, sin forzar ningún valor).
+  if (mode === 'batch') {
+    const addToggle = document.getElementById(`${prefix}search-add-toggle`);
+    if (addToggle) addToggle.checked = true;
+  }
   const batchResults = document.getElementById(`${prefix}rec-batch-results`);
   if (batchResults) batchResults.innerHTML = '';
 }
