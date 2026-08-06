@@ -698,6 +698,12 @@ function startGlobeTool() {
   const _mgb = document.getElementById('mob-globe-direct-btn');
   if (_mgb) _mgb.classList.add('active');
   map.getContainer().style.cursor = 'crosshair';
+  // Desvincular temporalmente los popups de las geometrías vectoriales visibles para poder
+  // marcar coordenadas dentro de ellas sin que se interponga su bocadillo de información
+  // (mismo patrón que la herramienta de dibujo y la de selección).
+  if (typeof shpLayers !== 'undefined') {
+    shpLayers.forEach(l => l.polyLayer.eachLayer(sub => { if (sub.getPopup()) sub.unbindPopup(); }));
+  }
   map.on('click', onGlobeClick);
 }
 
@@ -710,6 +716,15 @@ function stopGlobeTool() {
   map.getContainer().style.cursor = '';
   map.off('click', onGlobeClick);
   globePopup.style.display = 'none';
+  // Restaurar los popups de las geometrías vectoriales desvinculados en startGlobeTool()
+  if (typeof shpLayers !== 'undefined') {
+    shpLayers.forEach(l => l.polyLayer.eachLayer(sub => {
+      if (sub.feature && !sub.getPopup()) {
+        const _l = shpLayers.find(ll => ll.polyLayer.hasLayer(sub) || ll.pinLayer?.hasLayer(sub));
+        sub.bindPopup(() => buildPopupHtml(sub.feature.properties, _l?.id));
+      }
+    }));
+  }
 }
 
 function onGlobeClick(e) {
