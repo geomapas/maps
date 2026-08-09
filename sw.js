@@ -1,4 +1,4 @@
-const CACHE = 'geomapas-v3.2';
+const CACHE = 'geomapas-v3.3';
 
 const ASSETS = [
   './index.html',
