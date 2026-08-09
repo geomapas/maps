@@ -364,9 +364,11 @@ function buildPopupHtml(properties, layerId) {
 
 // ── Agregar Capa Vectorial (Modificada con integración de base de datos) ──
 // initialPinMode: 'auto' (por defecto, alterna vectorial/pins según zoom) | 'vector' (siempre vectorial, sin pins)
-function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, shouldZoom = true, forceColor = null, initialPinMode = 'auto') {
+// initialVisible: true (por defecto) | false — si la capa debe empezar oculta en el mapa
+function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, shouldZoom = true, forceColor = null, initialPinMode = 'auto', initialVisible = true) {
   const id    = cloudId || Math.random().toString(36).slice(2, 11);
   const pinMode = initialPinMode === 'vector' ? 'vector' : 'auto';
+  const startVisible = initialVisible !== false;
   
   if (shpLayers.some(l => l.id === id)) return;
 
@@ -438,8 +440,10 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
 
   const zoom = map.getZoom();
   const showPins = pinMode !== 'vector' && zoom < SHP_ZOOM_THRESHOLD;
-  if (showPins) pinLayer.addTo(map);
-  else polyLayer.addTo(map);
+  if (startVisible) {
+    if (showPins) pinLayer.addTo(map);
+    else polyLayer.addTo(map);
+  }
 
   function onZoom() {
     if (!obj.visible) return;
@@ -499,7 +503,7 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
     }
   };
 
-  const obj = { id, name, geojson, leafletLayer, polyLayer, pinLayer, color, visible: true, featureCount, pinMode };
+  const obj = { id, name, geojson, leafletLayer, polyLayer, pinLayer, color, visible: startVisible, featureCount, pinMode };
   shpLayers.push(obj);
 
   if (shouldZoom) {
@@ -549,7 +553,7 @@ function addShpToUnifiedList(layer) {
   item.dataset.id   = layer.id;
   item.dataset.type = 'shp';
   item.innerHTML = `
-    <input type="checkbox" class="photo-vis shp-vis" checked title="Mostrar capa"
+    <input type="checkbox" class="photo-vis shp-vis" ${layer.visible !== false ? 'checked' : ''} title="Mostrar capa"
       style="width:14px;height:14px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;">
     <div class="item-info">
       <div class="item-name" title="${esc(layer.name)}">${esc(layer.name)}</div>
@@ -574,6 +578,7 @@ function addShpToUnifiedList(layer) {
       </button>
       <button class="item-del" title="Eliminar">✕</button>
     </div>`;
+  if (layer.visible === false) item.classList.add('hidden-photo');
 
   // Contenedor de hijos (árbol colapsado por defecto, se puebla en el primer expand)
   const childrenEl = document.createElement('div');
@@ -612,6 +617,10 @@ function addShpToUnifiedList(layer) {
     }
     item.classList.toggle('hidden-photo', !e.target.checked);
     if (typeof syncLabelGroupVisibility === 'function') syncLabelGroupVisibility(layer.id);
+    // Sincronizar la visibilidad en la nube para que se recuerde al iniciar sesión en otro dispositivo
+    if (typeof isFirebaseActive === 'function' && isFirebaseActive() && typeof updateShpVisibilityInCloud === 'function') {
+      updateShpVisibilityInCloud(layer.id, layer.visible);
+    }
   });
 
   item.querySelector('.item-name').addEventListener('click', e => {
@@ -737,6 +746,7 @@ function populateShpChildren(layer, container) {
         if (delGid) { try { localStorage.removeItem(`cl_${layer.id}_${delGid}`); } catch(_) {} }
         const savedColor  = layer.color;
         const savedPinMode = layer.pinMode;
+        const savedVisible = layer.visible;
         const savedLabels = typeof layerLabels !== 'undefined' && layerLabels[layer.id]
           ? { fields:[...layerLabels[layer.id].fields], visible:layerLabels[layer.id].visible,
               color:layerLabels[layer.id].color, size:layerLabels[layer.id].size }
@@ -750,7 +760,7 @@ function populateShpChildren(layer, container) {
         document.querySelector(`.list-item[data-id="${layer.id}"]`)?.remove();
         document.querySelector(`.shp-children[data-layer-id="${layer.id}"]`)?.remove();
         shpLayers.splice(shpLayers.findIndex(l => l.id === layer.id), 1);
-        addShpLayer({...layer.geojson}, layer.name, layer.id, true, false, savedColor, savedPinMode);
+        addShpLayer({...layer.geojson}, layer.name, layer.id, true, false, savedColor, savedPinMode, savedVisible);
         const rebuiltLayer = shpLayers.find(l => l.id === layer.id);
         if (rebuiltLayer) {
           rebuiltLayer._isCollab = savedCollab.isCollab;
@@ -805,6 +815,18 @@ function exportShpKML(id) {
 const layerFilters = {};
 
 // Aplica los filtros de una capa: oculta features que no cumplan ningún filtro activo
+// El polyLayer puede contener tanto geometrías vectoriales (Polygon/Polyline, que exponen
+// setStyle) como puntos representados como L.Marker (que no tienen setStyle, solo
+// setOpacity/setIcon) — hay que tratar ambos casos o la capa de puntos rompe el filtrado.
+function setFilterSubVisibility(sub, visible) {
+  if (typeof sub.setStyle === 'function') {
+    sub.setStyle(visible ? { opacity: 1, fillOpacity: 0.2 } : { opacity: 0, fillOpacity: 0 });
+  } else if (typeof sub.setOpacity === 'function') {
+    sub.setOpacity(visible ? 1 : 0);
+  }
+  if (typeof sub.setInteractive === 'function') sub.setInteractive(visible);
+}
+
 function applyLayerFilter(layer) {
   const filters = (layerFilters[layer.id] || []).filter(f => f.field && f.values.length);
   const item    = document.querySelector(`.list-item[data-id="${layer.id}"]`);
@@ -813,7 +835,7 @@ function applyLayerFilter(layer) {
   if (!filters.length) {
     // Sin filtros: mostrar todo
     if (icon) icon.style.display = 'none';
-    layer.polyLayer?.eachLayer(sub => sub.setStyle({ opacity: 1, fillOpacity: 0.2 }));
+    layer.polyLayer?.eachLayer(sub => setFilterSubVisibility(sub, true));
     layer.pinLayer?.eachLayer(sub  => sub.setOpacity(1));
     return;
   }
@@ -826,12 +848,7 @@ function applyLayerFilter(layer) {
     const matches = filters.every(f =>
       f.values.some(v => String(props[f.field] ?? '').trim().toUpperCase() === v.toUpperCase())
     );
-    sub.setStyle(matches
-      ? { opacity: 1, fillOpacity: 0.2 }
-      : { opacity: 0, fillOpacity: 0 }
-    );
-    // bloquear interacción en features ocultas
-    if (sub.setInteractive) sub.setInteractive(matches);
+    setFilterSubVisibility(sub, matches);
   });
 
   layer.pinLayer?.eachLayer(sub => {
