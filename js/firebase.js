@@ -109,6 +109,7 @@ async function saveShpToCloud(layer) {
       geojson: serializedGeoJson,
       color: layer.color,
       pinMode: layer.pinMode || 'auto',
+      visible: layer.visible !== false,
       featureCount: layer.featureCount,
       ...(lblCfg ? { labels: lblCfg } : {}),
       customFields: cfCfg,
@@ -148,6 +149,16 @@ async function updateShpPinModeInCloud(layerId, pinMode) {
   const docRef = db.doc(`artifacts/${appId}/users/${user.uid}/capas_vectoriales/${layerId}`);
   try {
     await docRef.update({ pinMode });
+  } catch (_) {}
+}
+
+async function updateShpVisibilityInCloud(layerId, visible) {
+  if (!isFirebaseActive()) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  const docRef = db.doc(`artifacts/${appId}/users/${user.uid}/capas_vectoriales/${layerId}`);
+  try {
+    await docRef.update({ visible });
   } catch (_) {}
 }
 
@@ -361,7 +372,7 @@ function setupCollabLayersListener(user) {
               // Añadir la capa si no existe aún
               try {
                 const geojson = JSON.parse(data.geojson);
-                addShpLayer(geojson, data.name, layerId, false, false, data.color || null, data.pinMode || 'auto');
+                addShpLayer(geojson, data.name, layerId, false, false, data.color || null, data.pinMode || 'auto', data.visible !== false);
                 const layer = shpLayers.find(l => l.id === layerId);
                 if (layer) {
                   layer._isCollab = true;
@@ -387,7 +398,7 @@ function setupCollabLayersListener(user) {
                 if (idx !== -1) shpLayers.splice(idx, 1);
                 document.querySelector(`.list-item[data-id="${layerId}"]`)?.remove();
 
-                addShpLayer(geojson, data.name, layerId, false, false, data.color || null, data.pinMode || 'auto');
+                addShpLayer(geojson, data.name, layerId, false, false, data.color || null, data.pinMode || 'auto', data.visible !== false);
                 const refreshed = shpLayers.find(l => l.id === layerId);
                 if (refreshed) {
                   refreshed._isCollab = true;
