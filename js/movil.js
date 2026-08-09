@@ -735,7 +735,7 @@ function setupRealtimeCloudSync(user) {
           const geojson = JSON.parse(data.geojson);
           console.log('[CF] snapshot ADDED', data.id, 'customFields=', data.customFields, 'keys=', Object.keys(data));
           // Restaurar color guardado en Firestore; si no hay, la paleta asignará uno
-          addShpLayer(geojson, data.name, data.id, false, false, data.color || null, data.pinMode || 'auto');
+          addShpLayer(geojson, data.name, data.id, false, false, data.color || null, data.pinMode || 'auto', data.visible !== false);
           const _addedLayer = shpLayers.find(l => l.id === data.id);
           if (_addedLayer) _addedLayer._lastSyncedGeojson = data.geojson;
           // Sincronizar color en el dot de la UI (por si la capa ya existía en lista)
@@ -795,7 +795,7 @@ function setupRealtimeCloudSync(user) {
               if (idx !== -1) shpLayers.splice(idx, 1);
               document.querySelector(`.list-item[data-id="${data.id}"]`)?.remove();
 
-              addShpLayer(geojson, data.name, data.id, false, false, data.color || null, data.pinMode || 'auto');
+              addShpLayer(geojson, data.name, data.id, false, false, data.color || null, data.pinMode || 'auto', data.visible !== false);
               const refreshed = shpLayers.find(l => l.id === data.id);
               if (refreshed) {
                 refreshed._isCollab = savedCollab.isCollab;
@@ -816,6 +816,19 @@ function setupRealtimeCloudSync(user) {
           const currentLayer = shpLayers.find(l => l.id === data.id) || layer;
           if (data.pinMode && currentLayer.pinMode !== data.pinMode && typeof setLayerPinMode === 'function') {
             setLayerPinMode(currentLayer, data.pinMode);
+          }
+          if (typeof data.visible === 'boolean' && currentLayer.visible !== data.visible) {
+            currentLayer.visible = data.visible;
+            if (data.visible) {
+              currentLayer.leafletLayer.addTo(map);
+            } else {
+              map.removeLayer(currentLayer.polyLayer);
+              map.removeLayer(currentLayer.pinLayer);
+            }
+            const visChk = document.querySelector(`.list-item[data-id="${data.id}"] .shp-vis`);
+            if (visChk) visChk.checked = data.visible;
+            document.querySelector(`.list-item[data-id="${data.id}"]`)?.classList.toggle('hidden-photo', !data.visible);
+            if (typeof syncLabelGroupVisibility === 'function') syncLabelGroupVisibility(data.id);
           }
           if (data.labels && typeof restoreLayerLabels === 'function') {
             restoreLayerLabels(currentLayer, data.labels);
