@@ -325,13 +325,21 @@
   closeBtn.addEventListener('click', closeSelBar);
   saveBtn.addEventListener('click', () => {
     if (selFeatures.length === 0) { toast('No hay geometrías seleccionadas', 'err'); return; }
-    const fc = { type: 'FeatureCollection', features: selFeatures.map(s => s.feature) };
+    let fc = { type: 'FeatureCollection', features: selFeatures.map(s => s.feature) };
+    const isOwnLayer = selSource !== 'recinto' && selSource !== 'cultivo';
+
+    // Trasladar el checklist (visitado/comentario/técnico/campos personalizados) de la capa
+    // de origen a la selección, para que no se pierda al crear la nueva capa o al añadir
+    // estas geometrías a una capa existente. Sólo aplica si la fuente es una capa propia
+    // (Recintos SIGPAC / Cultivo declarado no tienen checklist).
+    if (isOwnLayer && typeof transferChecklistToSelection === 'function') {
+      fc = transferChecklistToSelection(selSource, fc);
+    }
     const srcLabel = layerSel.options[layerSel.selectedIndex]?.text || 'Selección';
     const name = `Selección ${srcLabel} (${selFeatures.length})`;
 
     // Modo "Mover": si está activo y la fuente es una capa propia, tras guardar/añadir
     // la selección se eliminan esas mismas geometrías de la capa origen.
-    const isOwnLayer   = selSource !== 'recinto' && selSource !== 'cultivo';
     const shouldMove    = isOwnLayer && !!moveToggle?.checked;
     const sourceLayerId = selSource;
     const featsToMove    = shouldMove ? selFeatures.slice() : null;
