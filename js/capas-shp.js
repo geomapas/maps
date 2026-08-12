@@ -197,6 +197,50 @@ function enrichGeojsonWithChecklist(layerId, geojson) {
   return clone;
 }
 
+// Traslada el checklist (visitado/comentario/técnico/fecha/campos personalizados) desde la
+// capa de origen a un clon del GeoJSON indicado, embebiendo los mismos campos
+// _visitado/_comentari/... que importChecklistFromFeatures() usa para recuperarlos en la
+// capa de destino. Se usa al copiar/mover geometrías con la herramienta de selección para
+// que el checklist no se pierda al generar una capa nueva o añadirlas a una existente.
+// A diferencia de enrichGeojsonWithChecklist() (pensada para exportar/compartir una capa
+// completa), aquí sólo se embeben esos campos en las features que realmente tienen datos
+// guardados, para no rellenar con propiedades vacías el resto de la selección — relevante
+// en selecciones de miles de recintos.
+function transferChecklistToSelection(sourceLayerId, geojson) {
+  const clone = JSON.parse(JSON.stringify(geojson));
+  const feats = [];
+  const collect = g => {
+    if (!g) return;
+    if (Array.isArray(g)) { g.forEach(collect); return; }
+    if (g.type === 'FeatureCollection') g.features?.forEach(f => feats.push(f));
+    else if (g.type === 'Feature') feats.push(g);
+  };
+  collect(clone);
+  feats.forEach(f => {
+    f.properties = f.properties || {};
+    const gid   = f.properties.__gid;
+    const saved = gid ? getChecklistData(sourceLayerId, gid) : null;
+    const hasData = saved && (
+      saved.visitado ||
+      (saved.comentario && String(saved.comentario).trim()) ||
+      (saved.tecnico && String(saved.tecnico).trim()) ||
+      (Array.isArray(saved.custom) && saved.custom.some(v => v && String(v).trim()))
+    );
+    if (hasData) {
+      f.properties._visitado  = saved.visitado ? 1 : 0;
+      f.properties._tecnico   = saved.tecnico || '';
+      f.properties._fecha     = formatVisitDate(saved.visitDate);
+      (saved.custom || []).forEach((v, i) => {
+        if (v && String(v).trim()) f.properties['_c' + (i + 1)] = String(v).slice(0, 50);
+      });
+      f.properties._comentari = (saved.comentario || '').toString().slice(0, 250);
+      f.properties._visit_ts  = saved.ts || '';
+    }
+    delete f.properties.__gid; // se reasigna uno nuevo, estable, en la capa de destino
+  });
+  return clone;
+}
+
 // Al importar una capa con campos _visitado / _tecnico / _fecha / _cN / _comentari, vuelca al localStorage
 function importChecklistFromFeatures(layerId, features) {
   features.forEach(f => {
