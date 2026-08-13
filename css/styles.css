@@ -1284,14 +1284,22 @@ body:has(#sel-tool-bar.open) #measure-popup { display: none !important; }
   #mob-layers-panel {
     display: none;
     position: absolute;
-    top: 114px; right: 12px; z-index: 950;
-    width: 290px;
+    top: 114px; left: 12px; right: 12px; bottom: 12px; z-index: 950;
     background: var(--glass); border: 1px solid var(--glass-border);
     border-radius: 14px; box-shadow: var(--shadow); backdrop-filter: blur(16px);
-    max-height: calc(100vh - 200px); overflow: hidden;
+    overflow: hidden;
     flex-direction: column;
   }
   #mob-layers-panel.open { display: flex !important; }
+
+  /* Mientras el panel de capas está abierto (ocupa todo el ancho), ocultar los botones
+     flotantes de herramientas para que no queden tapados/inaccesibles debajo del panel */
+  body.mob-layers-panel-open #mob-gps-btn,
+  body.mob-layers-panel-open #mob-raster-btn,
+  body.mob-layers-panel-open #mob-raster-panel,
+  body.mob-layers-panel-open #mob-tools-zone {
+    display: none !important;
+  }
 
   .mob-panel-header {
     display: flex; align-items: center; justify-content: space-between;
