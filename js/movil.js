@@ -74,12 +74,15 @@
   function openMobLayers() {
     mobLayersPanel.classList.add('open');
     mobLayersBtn.classList.add('active');
+    document.body.classList.add('mob-layers-panel-open');
     syncMobProjectLayers();
   }
   function closeMobLayers() {
     mobLayersPanel.classList.remove('open');
     mobLayersBtn.classList.remove('active');
+    document.body.classList.remove('mob-layers-panel-open');
   }
+  window.closeMobLayers = closeMobLayers;
 
   if (mobLayersBtn)   mobLayersBtn.addEventListener('click', () => mobLayersPanel.classList.contains('open') ? closeMobLayers() : openMobLayers());
   if (mobLayersClose) mobLayersClose.addEventListener('click', closeMobLayers);
@@ -113,15 +116,15 @@
           <input type="checkbox" id="mob-vis-${layer.id}" ${layer.visible ? 'checked' : ''}>
           <label for="mob-vis-${layer.id}"></label>
         </div>
-        <div class="mob-layer-dot" title="Editar nombre y color">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          <input type="color" value="${layer.color}">
-        </div>
         <div class="mob-layer-info">
           <div class="mob-layer-item-name" title="${layer.name}">${layer.name}</div>
           <div class="mob-layer-item-sub">${layer.featureCount} recintos</div>
         </div>
         <div class="mob-layer-actions">
+          <div class="mob-layer-dot" title="Editar nombre y color">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <input type="color" value="${layer.color}">
+          </div>
           <button class="mob-layer-share" title="Compartir capa">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>
           </button>
