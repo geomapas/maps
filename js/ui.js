@@ -480,7 +480,11 @@ document.addEventListener('DOMContentLoaded', function() {
     [mobRecintoPanel, mobGanPanel].forEach(p => {
       if (p && p !== panel && p.classList.contains('open')) closeMobSheet(p);
     });
-    document.getElementById('mob-layers-panel')?.classList.remove('open');
+    if (typeof closeMobLayers === 'function') closeMobLayers();
+    else {
+      document.getElementById('mob-layers-panel')?.classList.remove('open');
+      document.body.classList.remove('mob-layers-panel-open');
+    }
     panel?.classList.add('open');
   }
   function closeMobSheet(panel) {
