@@ -817,6 +817,13 @@ function setupRealtimeCloudSync(user) {
             if (dot) dot.style.background = data.color;
           }
           const currentLayer = shpLayers.find(l => l.id === data.id) || layer;
+          if (data.name && currentLayer.name !== data.name) {
+            currentLayer.name = data.name;
+            const dskName = document.querySelector(`.list-item[data-id="${data.id}"] .item-name`);
+            if (dskName) { dskName.textContent = data.name; dskName.title = data.name; }
+            const mobName = document.querySelector(`.mob-layer-item[data-id="${data.id}"] .mob-layer-item-name`);
+            if (mobName) { mobName.textContent = data.name; mobName.title = data.name; }
+          }
           if (data.pinMode && currentLayer.pinMode !== data.pinMode && typeof setLayerPinMode === 'function') {
             setLayerPinMode(currentLayer, data.pinMode);
           }
