@@ -937,6 +937,9 @@ document.addEventListener('DOMContentLoaded', function() {
       if (dskName) { dskName.textContent = newName; dskName.title = newName; }
       const mobName = document.querySelector(`.mob-layer-item[data-id="${_editLayer.id}"] .mob-layer-item-name`);
       if (mobName) { mobName.textContent = newName; mobName.title = newName; }
+      if (typeof isFirebaseActive === 'function' && isFirebaseActive() && typeof updateShpNameInCloud === 'function') {
+        updateShpNameInCloud(_editLayer.id, newName);
+      }
     }
 
     if (newColor !== _editLayer.color) {
