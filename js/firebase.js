@@ -132,13 +132,33 @@ function updateLayerSyncIcon(layer) {
   if (el) el.style.display = (layer.synced === false) ? 'flex' : 'none';
 }
 
+// Resuelve la referencia correcta del documento de una capa en Firestore. Si la capa es
+// colaborativa (compartida por otro usuario), el documento real vive bajo el uid del
+// PROPIETARIO original, no bajo el del usuario actual — igual que ya hace saveShpToCloud()
+// para la geometría. Sin esto, cambiar el color/visibilidad/modo o borrar una capa
+// compartida no tocaba ningún documento real (la ruta bajo el uid del usuario actual no
+// existe), así que el cambio parecía aplicarse pero se perdía / la capa "volvía a aparecer".
+function shpDocRefFor(layerId, currentUid) {
+  const layer = typeof shpLayers !== 'undefined' ? shpLayers.find(l => l.id === layerId) : null;
+  const targetUid = (layer && layer._isCollab && layer._ownerUid) ? layer._ownerUid : currentUid;
+  return db.doc(`artifacts/${appId}/users/${targetUid}/capas_vectoriales/${layerId}`);
+}
+
+async function updateShpNameInCloud(layerId, name) {
+  if (!isFirebaseActive()) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  try {
+    await shpDocRefFor(layerId, user.uid).update({ name });
+  } catch (_) {}
+}
+
 async function updateShpColorInCloud(layerId, color) {
   if (!isFirebaseActive()) return;
   const user = auth.currentUser;
   if (!user) return;
-  const docRef = db.doc(`artifacts/${appId}/users/${user.uid}/capas_vectoriales/${layerId}`);
   try {
-    await docRef.update({ color });
+    await shpDocRefFor(layerId, user.uid).update({ color });
   } catch (_) {}
 }
 
@@ -146,9 +166,8 @@ async function updateShpPinModeInCloud(layerId, pinMode) {
   if (!isFirebaseActive()) return;
   const user = auth.currentUser;
   if (!user) return;
-  const docRef = db.doc(`artifacts/${appId}/users/${user.uid}/capas_vectoriales/${layerId}`);
   try {
-    await docRef.update({ pinMode });
+    await shpDocRefFor(layerId, user.uid).update({ pinMode });
   } catch (_) {}
 }
 
@@ -156,9 +175,8 @@ async function updateShpVisibilityInCloud(layerId, visible) {
   if (!isFirebaseActive()) return;
   const user = auth.currentUser;
   if (!user) return;
-  const docRef = db.doc(`artifacts/${appId}/users/${user.uid}/capas_vectoriales/${layerId}`);
   try {
-    await docRef.update({ visible });
+    await shpDocRefFor(layerId, user.uid).update({ visible });
   } catch (_) {}
 }
 
@@ -166,9 +184,8 @@ async function deleteShpFromCloud(layerId) {
   if (!isFirebaseActive()) return;
   const user = auth.currentUser;
   if (!user) return;
-  const docRef = db.doc(`artifacts/${appId}/users/${user.uid}/capas_vectoriales/${layerId}`);
   try {
-    await docRef.delete();
+    await shpDocRefFor(layerId, user.uid).delete();
     console.log(`Capa eliminada del espacio Cloud.`);
   } catch (_) {}
 }
