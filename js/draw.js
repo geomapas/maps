@@ -221,20 +221,24 @@ drawBtn.addEventListener('click', () => {
 });
 
 // ── ÁREA DE UN POLÍGONO ──
+// Fórmula geodésica estándar (algoritmo de Chamberlain/Duquette, JPL — la misma que usa
+// Leaflet.draw / turf.js) sobre lat/lng directamente. Antes se calculaba con un shoelace
+// sobre coordenadas proyectadas en Mercator (x = lng, y = ln(tan(π/4 + lat/2))), que es una
+// proyección conforme pero NO equivalente: exagera el área según la latitud, con un factor
+// de sobreestimación de aproximadamente 1/cos²(latitud). A ~40°N (Cuenca) ese factor es de
+// aproximadamente 1.7×, que es justo el orden de la desviación observada frente a QGIS.
 function ringAreaSqM(latlngs) {
   const R = 6378137;
   const n = latlngs.length;
   if (n < 3) return 0;
+  const d2r = Math.PI / 180;
   let area = 0;
   for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
-    const xi = latlngs[i].lng * Math.PI / 180;
-    const xj = latlngs[j].lng * Math.PI / 180;
-    const yi = Math.log(Math.tan(Math.PI / 4 + latlngs[i].lat * Math.PI / 360));
-    const yj = Math.log(Math.tan(Math.PI / 4 + latlngs[j].lat * Math.PI / 360));
-    area += (xj - xi) * (yj + yi);
+    const p1 = latlngs[i];
+    const p2 = latlngs[(i + 1) % n];
+    area += (p2.lng - p1.lng) * d2r * (2 + Math.sin(p1.lat * d2r) + Math.sin(p2.lat * d2r));
   }
-  return Math.abs(area / 2) * R * R;
+  return Math.abs(area * R * R / 2);
 }
 
 function haversineM(a, b) {
