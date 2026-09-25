@@ -69,8 +69,8 @@ let sigpacLayer = ORTOFOTO_CONFIGS[activeOrtoYear]();
 const baseLayers = {
   sat:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
            { attribution: 'Esri', maxNativeZoom: 19, maxZoom: 21 }),
-  osm:   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-           { attribution: '© OSM', maxNativeZoom: 19, maxZoom: 21 }),
+  osm:   L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+           { attribution: '© Google', maxNativeZoom: 20, maxZoom: 21, crossOrigin: true }),
   earth: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
            { attribution: '© Google', maxNativeZoom: 20, maxZoom: 21, crossOrigin: true }),
   sigpac: sigpacLayer,
