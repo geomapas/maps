@@ -133,6 +133,11 @@ document.getElementById('tog-cultivo').addEventListener('change', e => {
   function applyRowVisibility(key, visible) {
     const row = document.querySelector(`#initial-layers-card .layer-row[data-layer-key="${key}"]`);
     if (row) row.style.display = visible ? '' : 'none';
+    // Réplica móvil de la fila (panel "Capas" del móvil, sección SIGPAC): sin esto la
+    // configuración de Capas Iniciales solo afectaba al panel de escritorio, y en móvil
+    // siempre se mostraban las tres filas (Recintos/Cultivo/Ganadería) por defecto.
+    const mobRow = document.querySelector(`#mob-layers-panel .mob-layer-row[data-layer-key="${key}"]`);
+    if (mobRow) mobRow.style.display = visible ? '' : 'none';
   }
 
   // Toggle individual
