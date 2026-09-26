@@ -1,4 +1,4 @@
-const CACHE = 'geomapas-v4.5';
+const CACHE = 'geomapas-v2.7'; // subido para forzar la limpieza de la caché "v2.6" que se quedó pegada
 
 const ASSETS = [
   './index.html',
@@ -49,22 +49,27 @@ self.addEventListener('fetch', e => {
     url.includes('tile') || url.includes('wms') || url.includes('WMS') ||
     url.includes('arcgis') || url.includes('googleapis') || url.includes('gstatic') ||
     url.includes('firestore') || url.includes('firebase') ||
-    url.includes('cdnjs') || url.includes('unpkg') || url.includes('jsdelivr') ||
-    url.includes('gstatic')
+    url.includes('cdnjs') || url.includes('unpkg') || url.includes('jsdelivr')
   ) {
     e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
     return;
   }
 
-  // App shell y módulos JS: cache-first, fallback a red
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).then(response => {
-      // Cachear dinámicamente archivos locales no precacheados
-      if (response.ok && e.request.url.startsWith(self.location.origin)) {
-        const clone = response.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-      }
-      return response;
-    }))
-  );
+  // App shell y módulos JS/CSS propios: RED PRIMERO, con la caché como respaldo solo si
+  // falla la conexión (modo campo sin cobertura). Antes era "cache-first": una vez
+  // cacheado un archivo, el navegador jamás volvía a pedirlo a la red aunque se subiera
+  // una versión nueva — la única forma de verlo era cambiar el número de CACHE de arriba.
+  // Con red-primero, cualquier cambio que subas al repositorio se ve al recargar con
+  // conexión, sin depender de acordarte de tocar este archivo cada vez.
+  if (url.startsWith(self.location.origin)) {
+    e.respondWith(
+      fetch(e.request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(e.request))
+    );
+  }
 });
