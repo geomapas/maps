@@ -116,6 +116,13 @@ map.on('click', async e => {
           const coords = geojsonGeomToLatLngs(feature.geometry);
           if (coords && coords.length >= 3) drawHighlight(coords);
         }
+        // Campaña: solo viene en el JSON (campo "exp_ano"), no en la tabla HTML del popup.
+        const campanaVal = feature?.properties?.exp_ano;
+        if (campanaVal !== undefined && campanaVal !== null && campanaVal !== '') {
+          const row = document.getElementById('qp-campana-row');
+          const val = document.getElementById('qp-campana-val');
+          if (row && val) { val.textContent = String(campanaVal); row.style.display = ''; }
+        }
       } catch(_) {}
     } else {
       // Recinto: ArcGIS REST identify
@@ -197,6 +204,10 @@ function showQueryPopupCultivo(d, latlng) {
   qpIdEl.className = 'qp-id cultivo-id';
   qpIdEl.textContent = idStr;
   qpDetailEl.innerHTML = [
+    // La campaña no viene en la tabla HTML de este servicio (solo en el JSON), así que
+    // se deja un hueco oculto que rellena/muestra el fetch JSON de más abajo en cuanto
+    // llega la respuesta (mismo bloque que ya dibuja el contorno resaltado).
+    `<div class="qp-row" id="qp-campana-row" style="display:none;"><span class="qp-label">Campaña</span><span id="qp-campana-val"></span></div>`,
     ldg     ? `<div class="qp-row"><span class="qp-label">LDG</span><span>${esc(ldg)}</span></div>`         : '',
     supStr  ? `<div class="qp-row"><span class="qp-label">Superficie</span><span>${esc(String(supStr))}</span></div>` : '',
     cultivo ? `<div class="qp-row"><span class="qp-label">Cultivo</span><span>${esc(cultivo)}</span></div>` : '',
