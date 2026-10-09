@@ -560,6 +560,12 @@ function addShpLayer(geojson, name, cloudId = null, shouldSaveToCloud = false, s
   addShpToUnifiedList(obj);
   updateCounter();
 
+  // Si la consulta de Recinto/Cultivo está activa, la capa recién creada (o reconstruida)
+  // debe nacer también sin popups para no interceptar los clics de consulta
+  if (typeof queryMode !== 'undefined' && queryMode !== 'none' && typeof setShpPopupsForQuery === 'function') {
+    setShpPopupsForQuery(true);
+  }
+
   // Guardar en la nube si Firebase está activo, el usuario está conectado y se solicita
   if (shouldSaveToCloud && isFirebaseActive()) {
     saveShpToCloud(obj);
