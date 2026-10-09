@@ -201,9 +201,36 @@ document.getElementById('tog-cultivo').addEventListener('change', e => {
 const QS_KEY = 'geomapas_querymode';
 let queryMode = localStorage.getItem(QS_KEY) || 'none';
 
+// Mientras la consulta de Recinto/Cultivo está activa, los popups de las geometrías cargadas
+// se desvinculan: Leaflet detiene la propagación del clic al mapa cuando la geometría tiene
+// popup, así que el clic nunca llegaba al handler de consulta y salían los atributos de la
+// geometría en vez del recinto/cultivo. Mismo patrón que dibujo, medición y selección.
+function setShpPopupsForQuery(queryActive) {
+  if (typeof shpLayers === 'undefined') return;
+  shpLayers.forEach(l => {
+    [l.polyLayer, l.pinLayer].forEach(group => {
+      group?.eachLayer(sub => {
+        if (queryActive) {
+          if (sub.getPopup && sub.getPopup()) sub.unbindPopup();
+        } else if (sub.feature && !sub.getPopup()) {
+          sub.bindPopup(() => buildPopupHtml(sub.feature.properties, l.id));
+        }
+      });
+    });
+  });
+}
+
 function applyQueryMode(mode) {
+  const wasActive = queryMode !== 'none';
   queryMode = mode;
   localStorage.setItem(QS_KEY, mode);
+  // Solo restaurar popups si ninguna otra herramienta de clic (dibujo, coordenadas,
+  // selección) los está manteniendo desvinculados
+  const otherToolActive = (typeof drawActive !== 'undefined' && drawActive) ||
+                          (typeof globeActive !== 'undefined' && globeActive) ||
+                          (typeof window._selActive !== 'undefined' && window._selActive);
+  if (mode !== 'none') setShpPopupsForQuery(true);
+  else if (wasActive && !otherToolActive) setShpPopupsForQuery(false);
   document.querySelectorAll('.qs-btn').forEach(b => {
     b.classList.remove('active-none','active-recinto','active-cultivo','active');
   });
