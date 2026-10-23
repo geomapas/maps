@@ -19,13 +19,18 @@ let activeRecintoYear = '2026';
 let WMS_URL        = RECINTOS_WMS[activeRecintoYear];
 let ARCGIS_REST_URL = WMS_URL.replace('/WMSServer','/0/query').replace('/services/','/rest/services/');
 
+// Zoom mínimo a partir del cual se dibuja/pide la capa de recintos. Por debajo no se
+// solicita ningún tile (ahorra datos y evita el "enjambre" de líneas a zoom lejano).
+// Ajusta este valor si quieres que aparezca antes (más pequeño) o más tarde (más grande).
+const RECINTO_MIN_ZOOM = 14;
+
 const recintoLayers = {};
 for (const [year, url] of Object.entries(RECINTOS_WMS)) {
   recintoLayers[year] = L.tileLayer.wms(url, {
     layers: '0', format: 'image/png', transparent: true,
     version: '1.1.1', crs: L.CRS.EPSG3857, uppercase: true,
     opacity: 1.0, className: 'wms-magenta-filter',
-    maxZoom: 21, maxNativeZoom: 20
+    minZoom: RECINTO_MIN_ZOOM, maxZoom: 21, maxNativeZoom: 20
   });
 }
 let wmsRecinto = recintoLayers[activeRecintoYear];
