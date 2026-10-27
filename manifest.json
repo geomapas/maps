@@ -1,8 +1,10 @@
 {
+  "id": "/maps/",
   "name": "GEOmapas",
   "short_name": "GEOmapas",
   "description": "Visor SIGPAC con herramientas de campo",
-  "start_url": "./index.html",
+  "start_url": "/maps/index.html",
+  "scope": "/maps/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#2f6fde",
