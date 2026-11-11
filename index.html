@@ -173,11 +173,12 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
       </div>
+      <div id="ext-wms-overlay-rows"></div>
     </div>
 
     <!-- Modal configuración Capas Iniciales -->
     <div id="initial-layers-modal">
-      <div class="layer-edit-card" style="max-width:300px;">
+      <div class="layer-edit-card" style="max-width:340px;">
         <div class="layer-edit-title">Configurar Capas Iniciales</div>
         <input class="layer-edit-input" type="text" id="initial-layers-search" placeholder="Buscar capa…" autocomplete="off">
         <div class="ilm-list" id="initial-layers-list">
@@ -193,6 +194,31 @@
             <span>Explotaciones Ganaderas</span>
             <div class="toggle-wrap"><input type="checkbox" class="ilm-toggle" checked><label></label></div>
           </label>
+        </div>
+        <div class="ext-wms-section" id="ext-wms-section">
+          <div class="layer-edit-label">Servicios WMS externos</div>
+          <div class="ext-wms-list" id="ext-wms-list"></div>
+          <button type="button" class="ext-wms-add-toggle" id="ext-wms-add-toggle">+ Añadir servicio WMS</button>
+          <div class="ext-wms-form" id="ext-wms-form" style="display:none;">
+            <input class="layer-edit-input" type="text" id="ext-wms-url" placeholder="URL del servicio WMS" autocomplete="off">
+            <button type="button" class="ext-wms-btn" id="ext-wms-read">Leer capas del servicio</button>
+            <select class="layer-edit-input" id="ext-wms-layer-sel" style="display:none;"></select>
+            <input class="layer-edit-input" type="text" id="ext-wms-layer-manual" placeholder="…o nombre de capa a mano (varias: separadas por comas)" autocomplete="off">
+            <input class="layer-edit-input" type="text" id="ext-wms-name" placeholder="Nombre a mostrar" maxlength="40" autocomplete="off">
+            <select class="layer-edit-input" id="ext-wms-type">
+              <option value="overlay">Superposición (transparente, sobre el mapa)</option>
+              <option value="base">Fondo (opaco, como Earth o SIGPAC)</option>
+            </select>
+            <select class="layer-edit-input" id="ext-wms-version">
+              <option value="1.3.0">WMS 1.3.0</option>
+              <option value="1.1.1">WMS 1.1.1</option>
+            </select>
+            <div class="ext-wms-msg" id="ext-wms-msg"></div>
+            <div class="layer-edit-actions">
+              <button type="button" class="layer-edit-cancel" id="ext-wms-cancel">Cancelar</button>
+              <button type="button" class="layer-edit-save" id="ext-wms-save">Añadir</button>
+            </div>
+          </div>
         </div>
         <div class="layer-edit-actions">
           <button class="layer-edit-cancel" id="initial-layers-close">Cerrar</button>
@@ -625,6 +651,7 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
       </div>
+      <div id="mob-ext-wms-rows"></div>
     </div>
 
     <div class="mob-divider"></div>
@@ -1158,6 +1185,7 @@
 <script src="js/sidebar.js"></script>
 <script src="js/consulta-wms.js"></script>
 <script src="js/capas-shp.js"></script>
+<script src="js/wms-externos.js"></script>
 <script src="js/shp-writer.js"></script>
 <script src="js/txt-import.js"></script>
 <script src="js/draw.js"></script>
