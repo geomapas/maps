@@ -1,4 +1,4 @@
-const CACHE = 'geomapas-v3.1'; // subido para forzar la limpieza de la caché "v2.6" que se quedó pegada
+const CACHE = 'geomapas-v3.2'; // subido para forzar la limpieza de la caché "v2.6" que se quedó pegada
 
 const ASSETS = [
   './index.html',
@@ -13,6 +13,7 @@ const ASSETS = [
   './js/sidebar.js',
   './js/consulta-wms.js',
   './js/capas-shp.js',
+  './js/wms-externos.js',
   './js/shp-writer.js',
   './js/txt-import.js',
   './js/draw.js',
