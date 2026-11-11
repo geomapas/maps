@@ -231,7 +231,7 @@
 
   function mobSetBasemap(type) {
     setBasemap(type);
-    mobRasterLabel.textContent = type === 'sigpac' ? 'SIGPAC ' + activeOrtoYear : RASTER_LABELS[type];
+    mobRasterLabel.textContent = type === 'sigpac' ? 'SIGPAC ' + activeOrtoYear : (RASTER_LABELS[type] || (baseLayers[type] && baseLayers[type]._extName) || type);
     document.querySelectorAll('.mob-raster-opt').forEach(b => {
       b.classList.toggle('active', b.dataset.bm === type);
     });
