@@ -1801,3 +1801,27 @@ body:has(#mob-draw-bar.open) #measure-popup { display: none !important; }
     transform: translateX(-50%) !important;
   }
 }
+
+
+/* ── WMS EXTERNOS ── */
+.ext-wms-section { display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--border); padding-top:10px; }
+.ext-wms-list { display:flex; flex-direction:column; gap:2px; max-height:150px; overflow-y:auto; }
+.ext-wms-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:12px; color:var(--text); }
+.ext-wms-item:hover { background:var(--s2); }
+.ext-wms-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ext-wms-tag { flex-shrink:0; font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--blue); background:var(--blue-lt); border-radius:5px; padding:2px 5px; }
+.ext-wms-del { border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:13px; padding:2px 5px; border-radius:5px; }
+.ext-wms-del:hover { color:var(--danger); }
+.ext-wms-empty { font-family:'DM Sans',sans-serif; font-size:11px; color:var(--muted); padding:4px 2px; }
+.ext-wms-add-toggle, .ext-wms-btn { padding:8px 10px; border-radius:8px; border:1.5px solid var(--blue); background:transparent; color:var(--blue); font-family:'DM Sans',sans-serif; font-size:11.5px; font-weight:700; cursor:pointer; }
+.ext-wms-add-toggle:hover, .ext-wms-btn:hover { background:var(--blue-lt); }
+.ext-wms-btn:disabled { opacity:.5; cursor:default; }
+.ext-wms-form { display:flex; flex-direction:column; gap:8px; }
+.ext-wms-form .layer-edit-input { font-size:12px; padding:7px 9px; }
+.ext-wms-msg { font-family:'DM Sans',sans-serif; font-size:10.5px; line-height:1.5; color:var(--muted); }
+.ext-wms-msg:empty { display:none; }
+.ext-wms-msg.err { color:var(--danger); }
+.ext-wms-msg.ok { color:var(--green); }
+.ext-wms-opacity { width:100%; height:12px; margin:3px 0 0; accent-color:var(--blue); cursor:pointer; }
+.bm-btn.bm-ext { padding:7px 12px; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#initial-layers-modal .layer-edit-card { max-height:88vh; overflow-y:auto; }
