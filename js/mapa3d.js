@@ -172,8 +172,8 @@
 
     // Estado activo botones
     document.getElementById('bm-3d').classList.add('active');
-    document.getElementById('mob-btn-3d').classList.add('active');
-    document.getElementById('mob-3d-compass').style.display = 'flex';
+    var _mb = document.getElementById('mob-btn-3d'); if (_mb) _mb.classList.add('active');
+    var _mc = document.getElementById('mob-3d-compass'); if (_mc) _mc.style.display = 'flex';
 
     // Ocultar herramientas no relevantes
     setUIFor3D(true);
@@ -240,9 +240,8 @@
     document.getElementById('map3d').style.display = 'none';
     document.getElementById('map').style.opacity = '1';
     document.getElementById('bm-3d').classList.remove('active');
-    document.getElementById('mob-btn-3d').classList.remove('active');
-    document.getElementById('mob-3d-compass').style.display = 'none';
-    document.getElementById('mob-3d-compass').style.transform = 'rotate(0deg)';
+    var _mb2 = document.getElementById('mob-btn-3d'); if (_mb2) _mb2.classList.remove('active');
+    var _mc2 = document.getElementById('mob-3d-compass'); if (_mc2) { _mc2.style.display = 'none'; _mc2.style.transform = 'rotate(0deg)'; }
 
     // Restaurar UI
     setUIFor3D(false);
@@ -256,12 +255,14 @@
   }
 
   // Brújula: resetear norte con animación suave
-  document.getElementById('mob-3d-compass').addEventListener('click', function() {
+  var _compassEl = document.getElementById('mob-3d-compass');
+  if (_compassEl) _compassEl.addEventListener('click', function() {
     if (!map3DInstance) return;
     map3DInstance.easeTo({ bearing: 0, pitch: 65, duration: 400 });
   });
 
-  document.getElementById('mob-btn-3d').addEventListener('click', toggle3D);
+  var _btn3d = document.getElementById('mob-btn-3d');
+  if (_btn3d) _btn3d.addEventListener('click', toggle3D);
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && document.getElementById('map3d').style.display === 'block') exit3D();
