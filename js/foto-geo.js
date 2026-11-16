@@ -592,13 +592,12 @@
       // Guardar en la galería: en móvil, hoja «Compartir» → «Guardar imagen» (el navegador
       // no puede escribir directamente en la galería). En escritorio, descarga normal.
       let saved = false;
-      const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      // iOS no permite descargar a Fotos sin la hoja Compartir; en Android/escritorio se guarda directo.
-      if (ios && navigator.canShare && navigator.canShare({ files: [file] })) {
+      const touch = navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (touch && navigator.canShare && navigator.canShare({ files: [file] })) {
         try { await navigator.share({ files: [file] }); saved = true; }
         catch (e) { if (e && e.name !== 'AbortError') console.warn('foto-geo: share falló', e); }
       }
-      if (!saved && !ios) {
+      if (!saved && !touch) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = name; a.click();
