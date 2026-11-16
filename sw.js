@@ -1,4 +1,4 @@
-const CACHE = 'geomapas-v3.4'; // subido para forzar la limpieza de la caché "v2.6" que se quedó pegada
+const CACHE = 'geomapas-v3.5'; // subido para forzar la limpieza de la caché "v2.6" que se quedó pegada
 
 const ASSETS = [
   './index.html',
