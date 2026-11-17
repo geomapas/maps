@@ -475,6 +475,8 @@
       zoomRange.min = hwZoom.min; zoomRange.max = Math.min(hwZoom.max, 10); zoomRange.step = 'any';
     } else {
       zoomRange.min = 1; zoomRange.max = 5; zoomRange.step = 'any';
+      // Sin zoom por sensor: pedir más resolución para que el recorte digital conserve detalle
+      if (track) track.applyConstraints({ width: { ideal: 4096 }, height: { ideal: 3072 } }).catch(() => {});
     }
     applyZoom(zoom);
   }
@@ -515,7 +517,8 @@
       c.getContext('2d').drawImage(video, (w - cw) / 2, (h - ch) / 2, cw, ch, 0, 0, cw, ch);
       src = c; w = cw; h = ch;
     }
-    takePhoto(src, w, h);
+    const MAXW = 2560, k = Math.min(1, MAXW / Math.max(w, h)); // salida ~1-1,5 MB
+    takePhoto(src, Math.round(w * k), Math.round(h * k));
   });
 
   $('pg-file').addEventListener('click', () => $('pg-file-input').click());
@@ -629,10 +632,26 @@
     window.addEventListener('deviceorientation', onOrient, true);
     startGps();
     try {
+      const RES = { width: { ideal: 2560 }, height: { ideal: 1440 } };
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false
+        video: Object.assign({ facingMode: { ideal: 'environment' } }, RES), audio: false
       });
+      // Cámara principal: si hay varias traseras (ultra gran angular, tele…), elegir la principal
+      // (en Android la principal suele ser «camera2 0, facing back»).
+      try {
+        const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+        const backs = devs.filter(d => /back|trasera|rear|environment/i.test(d.label));
+        const cur = stream.getVideoTracks()[0].getSettings().deviceId;
+        const main = backs.find(d => /\b0,\s*facing back/i.test(d.label)) ||
+                     (backs.length > 1 ? backs.find(d => !/wide|ultra|tele|macro|depth/i.test(d.label)) : null);
+        if (main && main.deviceId !== cur) {
+          const s2 = await navigator.mediaDevices.getUserMedia({
+            video: Object.assign({ deviceId: { exact: main.deviceId } }, RES), audio: false
+          });
+          stream.getTracks().forEach(t => t.stop());
+          stream = s2;
+        }
+      } catch (e) { console.warn('foto-geo: selección de cámara principal no disponible', e); }
       video.srcObject = stream;
       await video.play();
       camOk = true;
