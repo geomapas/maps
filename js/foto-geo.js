@@ -56,6 +56,7 @@
   .pg-btn[disabled]{opacity:.4;cursor:not-allowed;}
   .pg-stage{touch-action:none;overflow:hidden;}
   .pg-stage video{transform-origin:center center;}
+  #pg-live-mm{position:absolute;left:10px;bottom:10px;width:130px;height:130px;pointer-events:none;}
   .pg-zoom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:20px;background:rgba(0,0,0,.5);}
   .pg-zoom input{width:140px;accent-color:#fff;}
   .pg-zoom span{font-size:12px;font-weight:700;min-width:34px;text-align:center;cursor:pointer;}
@@ -102,6 +103,7 @@
       <video id="pg-video" playsinline muted autoplay></video>
       <img id="pg-preview" alt="Vista previa">
       <div class="pg-status" id="pg-status">Iniciando…</div>
+      <canvas id="pg-live-mm" width="260" height="260"></canvas>
       <div class="pg-zoom" id="pg-zoom"><span id="pg-zoom-val" title="Restablecer zoom">1.0×</span><input type="range" id="pg-zoom-range" min="1" max="5" step="0.1" value="1"></div>
     </div>
     <div class="pg-bar" id="pg-bar-live">
@@ -340,37 +342,24 @@
       g.stroke();
     }
 
-    // Posición + dirección
+    // Posición (punto rojo) + abanico de dirección
     const [px, py] = toPx(snap.lat, snap.lng);
     if (snap.heading !== null) {
       const th = (snap.heading - 90) * Math.PI / 180;
       g.beginPath();
       g.moveTo(px, py);
-      g.arc(px, py, size * 0.42, th - Math.PI / 6, th + Math.PI / 6);
+      g.arc(px, py, size * 0.30, th - Math.PI / 7, th + Math.PI / 7);
       g.closePath();
-      g.fillStyle = 'rgba(255,235,59,0.35)';
+      g.fillStyle = 'rgba(255,235,59,0.22)';
       g.fill();
-      g.save();
-      g.translate(px, py);
-      g.rotate(snap.heading * Math.PI / 180);
-      g.beginPath();
-      g.moveTo(0, -17 * u); g.lineTo(11 * u, 12 * u); g.lineTo(0, 6 * u); g.lineTo(-11 * u, 12 * u);
-      g.closePath();
-      g.fillStyle = '#ffffff';
-      g.fill();
-      g.lineWidth = 2.5 * u;
-      g.strokeStyle = '#2f6fde';
-      g.stroke();
-      g.restore();
-    } else {
-      g.beginPath();
-      g.arc(px, py, 8 * u, 0, Math.PI * 2);
-      g.fillStyle = '#2f6fde';
-      g.fill();
-      g.lineWidth = 3 * u;
-      g.strokeStyle = '#fff';
-      g.stroke();
     }
+    g.beginPath();
+    g.arc(px, py, 7 * u, 0, Math.PI * 2);
+    g.fillStyle = '#e53935';
+    g.fill();
+    g.lineWidth = 2.5 * u;
+    g.strokeStyle = '#fff';
+    g.stroke();
 
     // Indicador de norte
     g.font = `bold ${16 * u}px sans-serif`;
@@ -666,6 +655,19 @@
     refreshStatus();
     if (pos) shutter.disabled = false;
   }
+
+  // Minimapa en vivo sobre el visor (misma representación que se imprime en la foto)
+  const liveMm = $('pg-live-mm');
+  function drawLiveMinimap() {
+    if (!modal.classList.contains('open') || barLive.style.display === 'none') { liveMm.style.display = 'none'; return; }
+    if (!pos) { liveMm.style.display = 'none'; return; }
+    liveMm.style.display = '';
+    const g = liveMm.getContext('2d');
+    g.clearRect(0, 0, liveMm.width, liveMm.height);
+    const size = liveMm.width - 8;
+    drawMinimap(g, 4, 4, size, { lat: pos.lat, lng: pos.lng, heading, ref: sel.ref, ring: sel.ring, mm }, size / 260);
+  }
+  setInterval(drawLiveMinimap, 200);
 
   // El botón de disparo se habilita en cuanto hay posición (cámara o cámara del sistema)
   setInterval(() => {
